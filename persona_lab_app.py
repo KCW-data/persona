@@ -1355,4 +1355,64 @@ with tab_admin:
         evals = load_evaluations(EVALUATIONS_PATH)
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("페르소나 기록"
+        m1.metric("페르소나 기록", len(records))
+        m2.metric("검증 기록", 0 if evals.empty else len(evals))
+        m3.metric("저장 위치", "로컬 data/")
+
+        with st.expander("테스트 데이터 삭제", expanded=False):
+            st.warning("삭제한 기록은 복구할 수 없습니다. 테스트 기록을 정리할 때만 사용하세요.")
+            email_values = record_email_values(records, evals)
+            if email_values:
+                with st.form("delete_email_data_form"):
+                    selected_email = st.selectbox("삭제할 이메일 또는 기존 식별자", email_values)
+                    confirm_delete = st.text_input("선택 기록 삭제 확인 문구", placeholder="DELETE")
+                    delete_selected = st.form_submit_button("선택한 사용자 기록 삭제")
+                if delete_selected:
+                    if confirm_delete.strip() != "DELETE":
+                        st.error("삭제하려면 확인 문구에 DELETE를 입력하세요.")
+                    else:
+                        deleted_records, deleted_evals = delete_data_for_email(selected_email)
+                        st.success(f"{selected_email} 기록을 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
+                        st.rerun()
+            else:
+                st.info("삭제할 사용자 기록이 없습니다.")
+
+            with st.form("delete_all_data_form"):
+                confirm_all = st.text_input("전체 테스트 데이터 삭제 확인 문구", placeholder="DELETE ALL")
+                delete_all = st.form_submit_button("전체 테스트 데이터 삭제")
+            if delete_all:
+                if confirm_all.strip() != "DELETE ALL":
+                    st.error("전체 삭제하려면 확인 문구에 DELETE ALL을 입력하세요.")
+                else:
+                    deleted_records, deleted_evals = delete_all_data()
+                    st.success(f"전체 테스트 데이터를 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
+                    st.rerun()
+
+        if records:
+            score_df = records_to_frame(records)
+            numeric_cols = [col for col in score_df.columns if pd.api.types.is_numeric_dtype(score_df[col])]
+            st.markdown("#### 분석 축 분포")
+            if numeric_cols:
+                st.bar_chart(score_df[numeric_cols])
+            st.dataframe(score_df, width="stretch")
+            st.download_button(
+                "페르소나 기록 CSV 다운로드",
+                data=score_df.to_csv(index=False).encode("utf-8-sig"),
+                file_name="persona_records_export.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("아직 저장된 페르소나 기록이 없습니다.")
+
+        if not evals.empty:
+            st.markdown("#### 검증 판정 분포")
+            st.bar_chart(evals["verdict"].value_counts())
+            st.dataframe(evals.tail(30), width="stretch")
+            st.download_button(
+                "검증 기록 CSV 다운로드",
+                data=evals.to_csv(index=False).encode("utf-8-sig"),
+                file_name="persona_evaluations_export.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("아직 저장된 검증 기록이 없습니다.")
