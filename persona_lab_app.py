@@ -20,7 +20,6 @@ APP_DIR = Path(__file__).resolve().parent
 DATA_DIR = APP_DIR / "data"
 RECORDS_PATH = DATA_DIR / "persona_records.jsonl"
 EVALUATIONS_PATH = DATA_DIR / "evaluations.csv"
-RUNTIME_CONFIG_PATH = DATA_DIR / "admin_runtime_config.json"
 LOCAL_SECRETS_PATH = APP_DIR / ".streamlit" / "secrets.toml"
 
 DEFAULT_MODEL = "gemini-3.5-flash"
@@ -131,13 +130,13 @@ def stable_id(email: str) -> str:
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:12]
 
 
-def safe_secret(name: str) -> str:
+def secret_value_and_source(name: str) -> tuple[str, str]:
     try:
         value = st.secrets.get(name, "")
     except Exception:
         value = ""
     if value:
-        return str(value)
+        return str(value), "Streamlit Cloud Secrets"
 
     if LOCAL_SECRETS_PATH.exists():
         try:
@@ -146,24 +145,17 @@ def safe_secret(name: str) -> str:
         except (tomllib.TOMLDecodeError, OSError):
             value = ""
         if value:
-            return str(value)
+            return str(value), "로컬 secrets.toml"
 
-    return str(os.environ.get(name, "") or "")
-
-
-def load_runtime_config() -> dict[str, str]:
-    if not RUNTIME_CONFIG_PATH.exists():
-        return {}
-    try:
-        data = json.loads(RUNTIME_CONFIG_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return {str(k): str(v) for k, v in data.items() if v}
+    value = os.environ.get(name, "") or ""
+    if value:
+        return str(value), "환경변수"
+    return "", "미설정"
 
 
-def save_runtime_config(config: dict[str, str]) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    RUNTIME_CONFIG_PATH.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+def safe_secret(name: str) -> str:
+    value, _ = secret_value_and_source(name)
+    return value
 
 
 def configured_admin_password() -> str:
@@ -176,9 +168,8 @@ def admin_login(password: str) -> bool:
 
 
 def gemini_runtime_config() -> dict[str, str]:
-    config = load_runtime_config()
-    key = config.get("GEMINI_API_KEY") or safe_secret("GEMINI_API_KEY")
-    model = config.get("GEMINI_MODEL") or safe_secret("GEMINI_MODEL") or DEFAULT_MODEL
+    key = safe_secret("GEMINI_API_KEY")
+    model = safe_secret("GEMINI_MODEL") or DEFAULT_MODEL
     return {"GEMINI_API_KEY": key, "GEMINI_MODEL": model}
 
 
@@ -189,11 +180,9 @@ def gemini_status_label() -> str:
 
 
 def gemini_admin_status_label() -> str:
-    config = load_runtime_config()
-    if config.get("GEMINI_API_KEY"):
-        return "관리자 런타임 키 사용"
-    if safe_secret("GEMINI_API_KEY"):
-        return "Streamlit Secrets 키 사용"
+    key, source = secret_value_and_source("GEMINI_API_KEY")
+    if key:
+        return f"{source} 사용"
     return "Gemini 키 미설정"
 
 
@@ -954,7 +943,7 @@ with tab_input:
             model = runtime["GEMINI_MODEL"]
 
             if not api_key:
-                st.error("분석 환경이 아직 준비되지 않았습니다. 관리자 대시보드에서 Gemini API 키를 먼저 등록해야 합니다.")
+                st.error("분석 환경이 아직 준비되지 않았습니다. 관리자에게 Streamlit Secrets 설정을 확인해 달라고 요청하세요.")
                 st.stop()
 
             with st.status("분석 중입니다. 입력한 사회조사 응답을 바탕으로 페르소나를 구성하고 있습니다.", expanded=True) as status:
@@ -1019,7 +1008,7 @@ with tab_issue:
 
         if st.button("10개 현안 응답 생성", type="primary"):
             if not api_key:
-                st.error("현안 응답 분석 환경이 아직 준비되지 않았습니다. 관리자 대시보드에서 Gemini API 키를 먼저 등록해야 합니다.")
+                st.error("현안 응답 분석 환경이 아직 준비되지 않았습니다. 관리자에게 Streamlit Secrets 설정을 확인해 달라고 요청하세요.")
                 st.stop()
             with st.status("페르소나가 10개 현안에 대해 5점 척도로 응답하는 중입니다.", expanded=True) as status:
                 st.write("페르소나 분석 결과와 10개 현안 목록을 결합합니다.")
@@ -1159,41 +1148,16 @@ with tab_admin:
                     st.error("비밀번호가 맞지 않습니다.")
 
     if st.session_state.get("admin_authenticated", False):
-        runtime_config = load_runtime_config()
         runtime = gemini_runtime_config()
         st.markdown("#### Gemini 서버 설정")
         c1, c2, c3 = st.columns(3)
         c1.metric("키 상태", gemini_admin_status_label())
         c2.metric("모델", runtime["GEMINI_MODEL"])
-        c3.metric("런타임 설정", "있음" if runtime_config else "없음")
-
-        with st.form("admin_gemini_config_form"):
-            new_api_key = st.text_input(
-                "Gemini API Key 등록/교체",
-                type="password",
-                placeholder="새 키를 입력하면 서버 런타임 설정에 저장됩니다.",
-            )
-            new_model = st.selectbox(
-                "Gemini 모델",
-                MODEL_OPTIONS,
-                index=MODEL_OPTIONS.index(runtime["GEMINI_MODEL"]) if runtime["GEMINI_MODEL"] in MODEL_OPTIONS else 0,
-            )
-            save_config = st.form_submit_button("서버 런타임 설정 저장")
-        if save_config:
-            config = load_runtime_config()
-            if new_api_key.strip():
-                config["GEMINI_API_KEY"] = new_api_key.strip()
-            config["GEMINI_MODEL"] = new_model
-            save_runtime_config(config)
-            st.success("관리자 런타임 설정을 저장했습니다. 일반 사용자는 키를 입력하지 않아도 이 설정으로 분석합니다.")
-            st.rerun()
-
-        if runtime_config.get("GEMINI_API_KEY") and st.button("런타임 Gemini 키 삭제"):
-            config = load_runtime_config()
-            config.pop("GEMINI_API_KEY", None)
-            save_runtime_config(config)
-            st.success("런타임 Gemini 키를 삭제했습니다. Secrets 키가 있으면 그 키를 사용합니다.")
-            st.rerun()
+        c3.metric("운영 방식", "Secrets 기반")
+        st.info(
+            "배포 운영에서는 Streamlit Cloud Secrets에 GEMINI_API_KEY와 ADMIN_PASSWORD를 한 번만 등록합니다. "
+            "사용자는 API 키를 입력하지 않으며, 관리자 대시보드에도 매번 키를 넣을 필요가 없습니다."
+        )
 
         st.divider()
         records = load_jsonl(RECORDS_PATH)
