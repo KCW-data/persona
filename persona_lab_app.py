@@ -36,12 +36,31 @@ SURVEY_BASIS = [
 ]
 
 REGIONS = [
-    "서울·수도권",
-    "광주·전라권",
-    "대전·충청권",
-    "대구·경북권",
-    "부산·울산·경남권",
-    "강원·제주권",
+    "무안군(목포대·청계·도림)",
+    "목포시",
+    "무안군(남악·오룡)",
+    "신안군",
+    "영암군",
+    "해남군",
+    "진도군",
+    "완도군",
+    "강진군",
+    "장흥군",
+    "나주시",
+    "화순군",
+    "순천시",
+    "여수시",
+    "광양시",
+    "담양군",
+    "곡성군",
+    "구례군",
+    "고흥군",
+    "보성군",
+    "장성군",
+    "함평군",
+    "영광군",
+    "광주광역시",
+    "전남 외 지역",
     "응답하지 않음",
 ]
 
@@ -88,6 +107,28 @@ LIKERT_LABELS = {
     3: "3점 중립/판단 유보",
     4: "4점 찬성",
     5: "5점 매우 찬성",
+}
+
+INTENSITY_LABELS = {
+    1: "1점 매우 낮음",
+    2: "2점 낮음",
+    3: "3점 보통",
+    4: "4점 높음",
+    5: "5점 매우 높음",
+}
+
+IDEOLOGY_LABELS = {
+    0: "0 진보",
+    1: "1",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5 중도",
+    6: "6",
+    7: "7",
+    8: "8",
+    9: "9",
+    10: "10 보수",
 }
 
 CURRENT_ISSUES = {
@@ -159,6 +200,28 @@ def secret_value_and_source(name: str) -> tuple[str, str]:
 def safe_secret(name: str) -> str:
     value, _ = secret_value_and_source(name)
     return value
+
+
+def score_radio(
+    label: str,
+    labels: dict[int, str],
+    *,
+    default: int,
+    key: str,
+    help_text: str | None = None,
+) -> int:
+    values = list(labels.keys())
+    return int(
+        st.radio(
+            label,
+            options=values,
+            index=values.index(default),
+            format_func=lambda value: labels.get(value, str(value)),
+            horizontal=True,
+            key=key,
+            help=help_text,
+        )
+    )
 
 
 def configured_admin_password() -> str:
@@ -860,6 +923,40 @@ st.markdown(
       border-radius: 8px;
       padding: 8px 14px;
     }
+    div[data-testid="stRadio"] > label {
+      font-weight: 650;
+      color: #1f2937;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.38rem 0.5rem;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label {
+      min-height: 2.35rem;
+      margin: 0;
+      padding: 0.42rem 0.58rem;
+      border: 1px solid #c9d5df;
+      border-radius: 8px;
+      background: #ffffff;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
+      border-color: #496a8f;
+      background: #f6f9fb;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
+      border-color: #1d5f91;
+      background: #edf6fc;
+      box-shadow: inset 0 0 0 1px #1d5f91;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label p {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.2;
+      white-space: normal;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -925,7 +1022,7 @@ with tab_input:
         with c1:
             age_range = st.selectbox("연령대", ["10대 후반", "20대 초반", "20대 중후반", "30대 이상", "응답하지 않음"])
             gender = st.selectbox("성별", GENDER_OPTIONS)
-            region = st.selectbox("주요 생활권", REGIONS)
+            region = st.selectbox("주요 생활권(목포대·전남권 중심)", REGIONS)
         with c2:
             education = st.selectbox("교육 상태", EDUCATION_OPTIONS)
             subject_area = st.text_input("전공·관심 분야", "AI 서비스 기획")
@@ -935,16 +1032,47 @@ with tab_input:
             future_focus = st.selectbox("연결하고 싶은 활동", ["취업", "창업", "연구·대학원", "지역문제 해결", "아직 미정"])
 
         st.markdown("#### B. 정치 관심과 정보 이용")
-        c4, c5, c6 = st.columns(3)
+        st.caption("각 문항은 해당 점수 박스를 클릭하면 입력됩니다.")
+        political_ideology = score_radio(
+            "정치 성향 자기배치",
+            IDEOLOGY_LABELS,
+            default=5,
+            key="political_ideology",
+            help_text="0은 진보, 5는 중도, 10은 보수에 가까운 자기배치입니다.",
+        )
+        c4, c5 = st.columns(2)
         with c4:
-            political_ideology = st.slider("정치 성향 자기배치: 0 진보 · 5 중도 · 10 보수", 0, 10, 5)
-            political_interest = st.slider("정치·사회 현안에 대한 관심", 1, 5, 3)
+            political_interest = score_radio(
+                "정치·사회 현안에 대한 관심",
+                INTENSITY_LABELS,
+                default=3,
+                key="political_interest",
+            )
+            news_frequency = score_radio(
+                "뉴스와 시사 정보를 확인하는 빈도",
+                INTENSITY_LABELS,
+                default=3,
+                key="news_frequency",
+            )
+            evidence_check = score_radio(
+                "주장이나 정보를 볼 때 출처를 확인하는 정도",
+                INTENSITY_LABELS,
+                default=4,
+                key="evidence_check",
+            )
         with c5:
-            news_frequency = st.slider("뉴스와 시사 정보를 확인하는 빈도", 1, 5, 3)
-            evidence_check = st.slider("주장이나 정보를 볼 때 출처를 확인하는 정도", 1, 5, 4)
-        with c6:
-            community_participation = st.slider("학내·지역·온라인 공론장 참여 경험", 1, 5, 2)
-            public_discussion_comfort = st.slider("논쟁적인 이슈를 토론하는 데 느끼는 편안함", 1, 5, 3)
+            community_participation = score_radio(
+                "학내·지역·온라인 공론장 참여 경험",
+                INTENSITY_LABELS,
+                default=2,
+                key="community_participation",
+            )
+            public_discussion_comfort = score_radio(
+                "논쟁적인 이슈를 토론하는 데 느끼는 편안함",
+                INTENSITY_LABELS,
+                default=3,
+                key="public_discussion_comfort",
+            )
         information_sources = st.multiselect(
             "주로 신뢰하는 정보 출처",
             INFO_SOURCES,
@@ -953,17 +1081,17 @@ with tab_input:
 
         st.markdown("#### C. 제도 신뢰")
         institutional_trust = {}
-        trust_cols = st.columns(3)
+        trust_cols = st.columns(2)
         for idx, (key, label) in enumerate(TRUST_ITEMS):
-            with trust_cols[idx % 3]:
-                institutional_trust[key] = st.slider(label, 1, 5, 3, key=f"trust_{key}")
+            with trust_cols[idx % 2]:
+                institutional_trust[key] = score_radio(label, LIKERT_LABELS, default=3, key=f"trust_{key}")
 
         st.markdown("#### D. 사회 현안 태도")
         issue_attitudes = {}
         issue_cols = st.columns(2)
         for idx, (key, label) in enumerate(ISSUE_ITEMS):
             with issue_cols[idx % 2]:
-                issue_attitudes[key] = st.slider(label, 1, 5, 3, key=f"issue_{key}")
+                issue_attitudes[key] = score_radio(label, LIKERT_LABELS, default=3, key=f"issue_{key}")
 
         open_issue_note = st.text_area(
             "최근 관심 있는 사회 현안과 그 이유",
@@ -1227,64 +1355,4 @@ with tab_admin:
         evals = load_evaluations(EVALUATIONS_PATH)
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("페르소나 기록", len(records))
-        m2.metric("검증 기록", 0 if evals.empty else len(evals))
-        m3.metric("저장 위치", "로컬 data/")
-
-        with st.expander("테스트 데이터 삭제", expanded=False):
-            st.warning("삭제한 기록은 복구할 수 없습니다. 테스트 기록을 정리할 때만 사용하세요.")
-            email_values = record_email_values(records, evals)
-            if email_values:
-                with st.form("delete_email_data_form"):
-                    selected_email = st.selectbox("삭제할 이메일 또는 기존 식별자", email_values)
-                    confirm_delete = st.text_input("선택 기록 삭제 확인 문구", placeholder="DELETE")
-                    delete_selected = st.form_submit_button("선택한 사용자 기록 삭제")
-                if delete_selected:
-                    if confirm_delete.strip() != "DELETE":
-                        st.error("삭제하려면 확인 문구에 DELETE를 입력하세요.")
-                    else:
-                        deleted_records, deleted_evals = delete_data_for_email(selected_email)
-                        st.success(f"{selected_email} 기록을 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
-                        st.rerun()
-            else:
-                st.info("삭제할 사용자 기록이 없습니다.")
-
-            with st.form("delete_all_data_form"):
-                confirm_all = st.text_input("전체 테스트 데이터 삭제 확인 문구", placeholder="DELETE ALL")
-                delete_all = st.form_submit_button("전체 테스트 데이터 삭제")
-            if delete_all:
-                if confirm_all.strip() != "DELETE ALL":
-                    st.error("전체 삭제하려면 확인 문구에 DELETE ALL을 입력하세요.")
-                else:
-                    deleted_records, deleted_evals = delete_all_data()
-                    st.success(f"전체 테스트 데이터를 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
-                    st.rerun()
-
-        if records:
-            score_df = records_to_frame(records)
-            numeric_cols = [col for col in score_df.columns if pd.api.types.is_numeric_dtype(score_df[col])]
-            st.markdown("#### 분석 축 분포")
-            if numeric_cols:
-                st.bar_chart(score_df[numeric_cols])
-            st.dataframe(score_df, width="stretch")
-            st.download_button(
-                "페르소나 기록 CSV 다운로드",
-                data=score_df.to_csv(index=False).encode("utf-8-sig"),
-                file_name="persona_records_export.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("아직 저장된 페르소나 기록이 없습니다.")
-
-        if not evals.empty:
-            st.markdown("#### 검증 판정 분포")
-            st.bar_chart(evals["verdict"].value_counts())
-            st.dataframe(evals.tail(30), width="stretch")
-            st.download_button(
-                "검증 기록 CSV 다운로드",
-                data=evals.to_csv(index=False).encode("utf-8-sig"),
-                file_name="persona_evaluations_export.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("아직 저장된 검증 기록이 없습니다.")
+        m1.metric("페르소나 기록"
