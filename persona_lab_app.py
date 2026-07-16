@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,7 @@ DATA_DIR = APP_DIR / "data"
 RECORDS_PATH = DATA_DIR / "persona_records.jsonl"
 EVALUATIONS_PATH = DATA_DIR / "evaluations.csv"
 RUNTIME_CONFIG_PATH = DATA_DIR / "admin_runtime_config.json"
+LOCAL_SECRETS_PATH = APP_DIR / ".streamlit" / "secrets.toml"
 
 DEFAULT_MODEL = "gemini-3.5-flash"
 MODEL_OPTIONS = [
@@ -82,6 +84,14 @@ ISSUE_ITEMS = [
     ("platform_labor", "플랫폼 노동과 프리랜서 노동에 대한 사회보장 장치가 필요하다"),
 ]
 
+LIKERT_LABELS = {
+    1: "1점 매우 반대",
+    2: "2점 반대",
+    3: "3점 중립/판단 유보",
+    4: "4점 찬성",
+    5: "5점 매우 찬성",
+}
+
 CURRENT_ISSUES = {
     "AI 규제와 저작권": "생성형 AI가 만든 결과물의 저작권과 학습 데이터 사용을 어떻게 규제해야 할까?",
     "청년 고용과 포트폴리오": "채용에서 AI 활용 경험을 어떤 기준으로 평가하는 것이 공정할까?",
@@ -92,7 +102,7 @@ CURRENT_ISSUES = {
     "다문화와 사회통합": "이주민과 다문화 구성원의 사회 참여를 확대하기 위해 무엇이 필요할까?",
     "플랫폼 노동": "배달, 프리랜서, 플랫폼 노동자의 권리 보장을 어떻게 설계해야 할까?",
     "저출생과 돌봄": "저출생 문제를 개인 선택이 아니라 사회 구조 문제로 다루려면 무엇이 바뀌어야 할까?",
-    "직접 입력": "",
+    "대학 등록금과 교육 기회": "대학 등록금과 교육비 부담을 줄이기 위해 공공 지원을 확대해야 할까?",
 }
 
 
@@ -113,7 +123,19 @@ def safe_secret(name: str) -> str:
         value = st.secrets.get(name, "")
     except Exception:
         value = ""
-    return str(value or os.environ.get(name, "") or "")
+    if value:
+        return str(value)
+
+    if LOCAL_SECRETS_PATH.exists():
+        try:
+            local_secrets = tomllib.loads(LOCAL_SECRETS_PATH.read_text(encoding="utf-8"))
+            value = local_secrets.get(name, "")
+        except (tomllib.TOMLDecodeError, OSError):
+            value = ""
+        if value:
+            return str(value)
+
+    return str(os.environ.get(name, "") or "")
 
 
 def load_runtime_config() -> dict[str, str]:
@@ -148,6 +170,12 @@ def gemini_runtime_config() -> dict[str, str]:
 
 
 def gemini_status_label() -> str:
+    if gemini_runtime_config()["GEMINI_API_KEY"]:
+        return "분석 준비 완료"
+    return "분석 준비 필요"
+
+
+def gemini_admin_status_label() -> str:
     config = load_runtime_config()
     if config.get("GEMINI_API_KEY"):
         return "관리자 런타임 키 사용"
@@ -187,12 +215,29 @@ def append_jsonl(path: Path, row: dict[str, Any]) -> None:
 
 def append_csv(path: Path, row: dict[str, Any]) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    exists = path.exists()
-    with path.open("a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-        if not exists:
+    if not path.exists() or path.stat().st_size == 0:
+        with path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
             writer.writeheader()
-        writer.writerow(row)
+            writer.writerow(row)
+        return
+
+    with path.open("r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        existing_fields = reader.fieldnames or []
+        existing_rows = list(reader)
+
+    new_fields = existing_fields + [key for key in row.keys() if key not in existing_fields]
+    if new_fields != existing_fields:
+        with path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=new_fields)
+            writer.writeheader()
+            writer.writerows(existing_rows)
+            writer.writerow(row)
+    else:
+        with path.open("a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=existing_fields)
+            writer.writerow(row)
 
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -215,7 +260,11 @@ def load_evaluations(path: Path) -> pd.DataFrame:
 
 
 def latest_persona(email_hash: str) -> dict[str, Any] | None:
-    records = [row for row in load_jsonl(RECORDS_PATH) if row.get("profile", {}).get("email_hash") == email_hash]
+    records = [
+        row
+        for row in load_jsonl(RECORDS_PATH)
+        if row.get("profile", {}).get("email_hash") == email_hash and row.get("analysis_method") == "gemini"
+    ]
     if not records:
         return None
     return records[-1]
@@ -358,27 +407,48 @@ def persona_prompt(profile: dict[str, Any]) -> str:
 """.strip()
 
 
-def issue_prompt(persona: dict[str, Any], issue_name: str, question: str) -> str:
+def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
     return f"""
-당신은 아래 페르소나 분석 결과를 바탕으로 사회 현안 질문에 답하는 시뮬레이션 응답자다.
+당신은 아래 페르소나 분석 결과를 바탕으로 사회 현안 10개에 답하는 시뮬레이션 응답자다.
 단, 실제 사람인 척하지 말고 "이 페르소나 가설에 따르면"이라는 조건을 유지한다.
 정당 지지, 투표 선택, 민감정보를 추정하지 않는다.
 응답은 한국어 JSON만 출력한다.
+각 현안에 대해 1~5점 리커트 척도로 답한다.
+
+척도:
+1 = 매우 반대
+2 = 반대
+3 = 중립/판단 유보
+4 = 찬성
+5 = 매우 찬성
 
 페르소나:
 {json.dumps(persona, ensure_ascii=False, indent=2)}
 
-현안: {issue_name}
-질문: {question}
+현안 목록:
+{json.dumps([{"issue_name": key, "question": value} for key, value in issues.items()], ensure_ascii=False, indent=2)}
 
 출력 JSON 스키마:
 {{
-  "short_answer": "핵심 입장 2~3문장",
-  "reasoning": ["근거1", "근거2", "근거3"],
-  "would_change_mind_if": ["판단이 바뀔 조건1", "조건2"],
-  "uncertainty": "현재 입력으로 부족한 부분",
-  "verification_hint": "사용자가 맞다/부분/틀리다로 검증할 때 볼 기준"
+  "overall_pattern": "10개 현안 응답의 전체 경향 2~3문장",
+  "responses": [
+    {{
+      "issue_name": "현안명",
+      "question": "질문",
+      "score": 1,
+      "label": "1점 매우 반대",
+      "reason": "페르소나 입력 근거에 기반한 이유 2~3문장",
+      "uncertainty": "현재 입력만으로 부족한 점",
+      "verification_hint": "사용자가 맞다/틀리다를 판단할 때 볼 기준"
+    }}
+  ]
 }}
+
+주의:
+- responses는 반드시 위 현안 목록과 같은 순서로 정확히 10개를 출력한다.
+- score는 반드시 정수 1,2,3,4,5 중 하나다.
+- reason에는 입력 근거와 연결되는 설명을 넣는다.
+- JSON 외 텍스트를 출력하지 않는다.
 """.strip()
 
 
@@ -396,6 +466,40 @@ def parse_json_from_text(text: str) -> dict[str, Any] | None:
             return json.loads(match.group(0))
         except json.JSONDecodeError:
             return None
+
+
+def normalize_issue_batch(issue_json: dict[str, Any]) -> dict[str, Any]:
+    responses = issue_json.get("responses", [])
+    if not isinstance(responses, list):
+        raise ValueError("responses가 목록이 아닙니다.")
+    if len(responses) != len(CURRENT_ISSUES):
+        raise ValueError(f"현안 응답 수가 {len(CURRENT_ISSUES)}개가 아닙니다.")
+
+    normalized = []
+    expected_items = list(CURRENT_ISSUES.items())
+    for idx, (issue_name, question) in enumerate(expected_items):
+        item = responses[idx] if idx < len(responses) else {}
+        try:
+            score = int(item.get("score", 3))
+        except (TypeError, ValueError):
+            score = 3
+        score = max(1, min(5, score))
+        normalized.append(
+            {
+                "issue_name": issue_name,
+                "question": question,
+                "score": score,
+                "label": LIKERT_LABELS[score],
+                "reason": str(item.get("reason", "")).strip(),
+                "uncertainty": str(item.get("uncertainty", "")).strip(),
+                "verification_hint": str(item.get("verification_hint", "")).strip(),
+            }
+        )
+
+    return {
+        "overall_pattern": str(issue_json.get("overall_pattern", "")).strip(),
+        "responses": normalized,
+    }
 
 
 def extract_interaction_text(data: dict[str, Any]) -> str:
@@ -522,40 +626,6 @@ def normalize_llm_persona(profile: dict[str, Any], llm_json: dict[str, Any] | No
     }
 
 
-def fallback_issue_answer(persona: dict[str, Any], issue_name: str, question: str) -> dict[str, Any]:
-    axes = persona.get("axes", {})
-    trust = axes.get("제도 신뢰", axes.get("institutional_trust", 50))
-    tech = axes.get("기술규제 신중성", axes.get("tech_caution", 50))
-    policy = axes.get("정책개입 선호", axes.get("policy_intervention", 50))
-    evidence = axes.get("근거 검증 성향", axes.get("evidence_orientation", 50))
-
-    if "AI" in issue_name:
-        stance = "활용 가능성은 인정하지만 규제와 책임 기준을 먼저 확인하려는 반응"
-        if tech < 45:
-            stance = "과도한 규제보다 활용 경험과 혁신 가능성을 더 중시하는 반응"
-    elif "주거" in issue_name or "고용" in issue_name or "지역" in issue_name:
-        stance = "개인 노력만으로 해결하기 어렵기 때문에 제도적 개입을 검토하려는 반응"
-        if policy < 45:
-            stance = "제도 개입의 필요성은 보되 비용과 실행 가능성을 먼저 따지는 반응"
-    elif "개인정보" in issue_name:
-        stance = "공공 편익이 있어도 개인정보 보호와 감시 위험을 중요하게 보는 반응"
-    else:
-        stance = "현안의 찬반을 바로 정하기보다 근거와 영향을 비교하려는 반응"
-
-    return {
-        "short_answer": f"이 페르소나 가설에 따르면 {stance}이 예상된다. 질문 '{question}'에 대해서는 단정적 찬반보다 조건과 근거를 요구할 가능성이 크다.",
-        "reasoning": [
-            f"정책개입 선호 {policy}점",
-            f"제도 신뢰 {trust}점",
-            f"기술규제 신중성 {tech}점",
-            f"근거 검증 성향 {evidence}점",
-        ],
-        "would_change_mind_if": ["정책 효과를 보여주는 공신력 있는 데이터가 제시될 때", "비용 부담과 피해 집단이 명확히 설명될 때"],
-        "uncertainty": "질문 맥락과 구체 사례가 부족하면 실제 판단은 달라질 수 있다.",
-        "verification_hint": "응답이 내 입력값의 정치 관심, 제도 신뢰, 현안 태도와 일치하는지 확인한다.",
-    }
-
-
 def records_to_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
     rows = []
     for record in records:
@@ -599,7 +669,19 @@ def persona_report(persona: dict[str, Any], answer: dict[str, Any] | None = None
     if persona.get("validation_questions"):
         lines.extend(["## 추가 검증 질문", *(f"- {q}" for q in persona["validation_questions"]), ""])
     if answer:
-        lines.extend(["## 마지막 현안 응답", answer.get("short_answer", ""), ""])
+        if answer.get("responses"):
+            lines.extend(["## 10개 현안 5점 응답"])
+            for item in answer["responses"]:
+                lines.extend(
+                    [
+                        f"### {item.get('issue_name', '')}",
+                        f"- 질문: {item.get('question', '')}",
+                        f"- 응답: {item.get('label', '')}",
+                        f"- 이유: {item.get('reason', '')}",
+                        f"- 불확실성: {item.get('uncertainty', '')}",
+                        "",
+                    ]
+                )
     lines.extend(["## 한계", "이 기록은 수업 실습용 가설이며 실제 조사 결과, 성격 진단, 정치 선택 예측이 아니다."])
     return "\n".join(lines)
 
@@ -613,9 +695,9 @@ def render_persona(persona: dict[str, Any]) -> None:
     st.subheader(persona.get("persona_type", "페르소나"))
     st.write(persona.get("summary", ""))
     if persona.get("analysis_method") == "gemini":
-        st.success("Gemini API로 분석한 결과입니다.")
+        st.success("LLM 기반 사회조사형 분석 결과입니다.")
     else:
-        st.info("Gemini API 키가 없거나 호출에 실패해 규칙 기반 예비 분석을 표시합니다.")
+        st.warning("이 기록은 LLM 분석 이전의 예비 기록입니다. 새 분석은 관리자 설정 완료 후 다시 실행하세요.")
 
     if persona.get("detailed_summary"):
         st.markdown("#### 상세 분석")
@@ -671,7 +753,7 @@ st.markdown(
 )
 
 st.title("사회조사형 페르소나 시뮬레이션")
-st.caption("인구통계·정치 관심·제도 신뢰·사회 현안 태도를 입력하고 Gemini로 페르소나를 분석한 뒤 현안 질문 응답을 검증합니다.")
+st.caption("인구통계·정치 관심·제도 신뢰·사회 현안 태도를 입력하고 페르소나 분석 결과와 현안 질문 응답을 검증합니다.")
 
 with st.sidebar:
     st.header("세션")
@@ -714,10 +796,8 @@ with tab_start:
         st.table(
             pd.DataFrame(
                 [
-                    {"판정": "맞다", "기준": "응답 방향과 근거가 입력값과 대체로 일치한다."},
-                    {"판정": "부분 일치", "기준": "핵심 방향은 맞지만 과장, 누락, 조건 부족이 있다."},
-                    {"판정": "틀리다", "기준": "입력값과 반대이거나 근거 없는 단정을 포함한다."},
-                    {"판정": "판단 보류", "기준": "질문이 모호하거나 현재 입력으로 판단하기 어렵다."},
+                    {"판정": "맞다", "기준": "페르소나의 5점 응답이 내 실제 입장과 대체로 일치한다."},
+                    {"판정": "틀리다", "기준": "페르소나의 5점 응답이 내 실제 입장과 다르다. 실제 내 점수와 정정 이유를 함께 남긴다."},
                 ]
             )
         )
@@ -813,27 +893,27 @@ with tab_input:
             api_key = runtime["GEMINI_API_KEY"]
             model = runtime["GEMINI_MODEL"]
 
+            if not api_key:
+                st.error("분석 환경이 아직 준비되지 않았습니다. 관리자 대시보드에서 Gemini API 키를 먼저 등록해야 합니다.")
+                st.stop()
+
             with st.status("분석 중입니다. 입력한 사회조사 응답을 바탕으로 페르소나를 구성하고 있습니다.", expanded=True) as status:
                 st.write("1단계: 입력값을 사회조사형 축으로 정리합니다.")
-                fallback = rule_based_persona(profile)
-                st.write("2단계: 서버에 설정된 Gemini API로 분석을 준비합니다.")
-                if api_key:
-                    try:
-                        raw_text, raw_response = call_gemini(api_key, model, persona_prompt(profile))
-                        llm_json = parse_json_from_text(raw_text)
-                        persona = normalize_llm_persona(profile, llm_json, raw_text)
-                        persona["raw_response"] = raw_response
-                        st.write("3단계: Gemini 분석 결과를 구조화했습니다.")
-                        status.update(label="분석이 완료되었습니다.", state="complete")
-                    except Exception as exc:
-                        persona = fallback
-                        persona["api_error"] = str(exc)
-                        st.write("Gemini 호출에 실패해 규칙 기반 예비 분석으로 대체했습니다. 관리자 설정을 확인하세요.")
-                        status.update(label="예비 분석으로 완료되었습니다.", state="complete")
-                else:
-                    persona = fallback
-                    st.write("서버에 Gemini 키가 설정되지 않아 규칙 기반 예비 분석을 생성했습니다.")
-                    status.update(label="예비 분석으로 완료되었습니다.", state="complete")
+                st.write("2단계: 분석 엔진으로 결과 생성을 준비합니다.")
+                try:
+                    raw_text, raw_response = call_gemini(api_key, model, persona_prompt(profile))
+                    llm_json = parse_json_from_text(raw_text)
+                    if not llm_json:
+                        raise ValueError("LLM 응답을 JSON으로 해석하지 못했습니다.")
+                    persona = normalize_llm_persona(profile, llm_json, raw_text)
+                    persona["raw_response"] = raw_response
+                    st.write("3단계: LLM 분석 결과를 구조화했습니다.")
+                    status.update(label="분석이 완료되었습니다.", state="complete")
+                except Exception as exc:
+                    status.update(label="분석에 실패했습니다.", state="error")
+                    st.error("분석이 완료되지 않았습니다. 관리자에게 분석 설정을 확인해 달라고 요청하세요.")
+                    st.session_state["last_analysis_error"] = str(exc)
+                    st.stop()
 
             st.session_state["persona"] = persona
             append_jsonl(RECORDS_PATH, {"created_at": now_iso(), **persona})
@@ -857,78 +937,144 @@ with tab_persona:
             st.json({k: v for k, v in persona.items() if k != "raw_response"})
 
 with tab_issue:
-    st.subheader("현안 질문 검증")
+    st.subheader("10개 현안 5점 응답 검증")
     persona = st.session_state.get("persona")
     if not persona:
         st.info("2번 입력 탭에서 페르소나를 먼저 분석하세요.")
     else:
-        issue_name = st.selectbox("현안 선택", list(CURRENT_ISSUES.keys()))
-        question = st.text_area("페르소나에게 물어볼 질문", value=CURRENT_ISSUES[issue_name], height=100)
+        st.write("아래 10개 현안에 대해 페르소나가 1~5점 척도로 응답합니다. 이후 각 응답을 맞다/틀리다로 검증합니다.")
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {"번호": idx + 1, "현안": issue_name, "질문": question}
+                    for idx, (issue_name, question) in enumerate(CURRENT_ISSUES.items())
+                ]
+            ),
+            width="stretch",
+        )
+        st.caption("척도: 1점 매우 반대 · 2점 반대 · 3점 중립/판단 유보 · 4점 찬성 · 5점 매우 찬성")
         runtime = gemini_runtime_config()
         api_key = runtime["GEMINI_API_KEY"]
         model = runtime["GEMINI_MODEL"]
 
-        if st.button("페르소나 응답 생성", type="primary"):
-            with st.status("페르소나가 현안 질문에 응답하는 중입니다.", expanded=True) as status:
-                st.write("페르소나 분석 결과와 현안 질문을 결합합니다.")
-                if api_key:
-                    try:
-                        raw_text, raw_response = call_gemini(api_key, model, issue_prompt(persona, issue_name, question))
-                        issue_json = parse_json_from_text(raw_text)
-                        if not issue_json:
-                            issue_json = fallback_issue_answer(persona, issue_name, question)
-                            issue_json["raw_llm_text"] = raw_text
-                        issue_json["raw_response"] = raw_response
-                        status.update(label="응답 생성이 완료되었습니다.", state="complete")
-                    except Exception as exc:
-                        issue_json = fallback_issue_answer(persona, issue_name, question)
-                        issue_json["api_error"] = str(exc)
-                        status.update(label="예비 응답으로 완료되었습니다.", state="complete")
-                else:
-                    issue_json = fallback_issue_answer(persona, issue_name, question)
-                    status.update(label="예비 응답으로 완료되었습니다.", state="complete")
+        if st.button("10개 현안 응답 생성", type="primary"):
+            if not api_key:
+                st.error("현안 응답 분석 환경이 아직 준비되지 않았습니다. 관리자 대시보드에서 Gemini API 키를 먼저 등록해야 합니다.")
+                st.stop()
+            with st.status("페르소나가 10개 현안에 대해 5점 척도로 응답하는 중입니다.", expanded=True) as status:
+                st.write("페르소나 분석 결과와 10개 현안 목록을 결합합니다.")
+                try:
+                    raw_text, raw_response = call_gemini(api_key, model, issue_prompt(persona, CURRENT_ISSUES))
+                    issue_json = parse_json_from_text(raw_text)
+                    if not issue_json:
+                        raise ValueError("LLM 응답을 JSON으로 해석하지 못했습니다.")
+                    issue_json = normalize_issue_batch(issue_json)
+                    issue_json["raw_response"] = raw_response
+                    issue_json["generated_at"] = now_iso()
+                    status.update(label="응답 생성이 완료되었습니다.", state="complete")
+                except Exception as exc:
+                    status.update(label="응답 생성에 실패했습니다.", state="error")
+                    st.error("현안 응답이 완료되지 않았습니다. 관리자에게 분석 설정을 확인해 달라고 요청하세요.")
+                    st.session_state["last_issue_error"] = str(exc)
+                    st.stop()
 
             st.session_state["last_issue_answer"] = issue_json
-            st.session_state["last_issue_name"] = issue_name
-            st.session_state["last_issue_question"] = question
 
         answer = st.session_state.get("last_issue_answer")
         if answer:
-            st.markdown("#### 페르소나 응답")
-            st.write(answer.get("short_answer", ""))
-            st.markdown("##### 근거")
-            for item in answer.get("reasoning", []):
-                st.write(f"- {item}")
-            st.markdown("##### 판단이 바뀔 조건")
-            for item in answer.get("would_change_mind_if", []):
-                st.write(f"- {item}")
-            st.info(answer.get("uncertainty", ""))
-            st.caption(answer.get("verification_hint", ""))
+            responses = answer.get("responses", [])
+            if answer.get("overall_pattern"):
+                st.info(answer["overall_pattern"])
 
-            with st.form("evaluation_form"):
-                verdict = st.radio("내 판단과 얼마나 맞는가", ["맞다", "부분 일치", "틀리다", "판단 보류"], horizontal=True)
-                reason = st.text_area("판정 이유", placeholder="어떤 근거가 맞거나 틀렸는지, 어떤 입력이 부족했는지 적기", height=100)
-                saved = st.form_submit_button("검증 기록 저장")
-            if saved:
-                if not reason.strip():
-                    st.error("판정 이유를 한 문장 이상 입력해야 저장할 수 있습니다.")
-                else:
-                    row = {
-                        "created_at": now_iso(),
-                        "email_hash": persona["profile"]["email_hash"],
-                        "persona_type": persona.get("persona_type", ""),
-                        "issue_name": st.session_state.get("last_issue_name", ""),
-                        "question": st.session_state.get("last_issue_question", ""),
-                        "answer": answer.get("short_answer", ""),
-                        "verdict": verdict,
-                        "reason": reason.strip(),
+            response_df = pd.DataFrame(
+                [
+                    {
+                        "번호": idx + 1,
+                        "현안": item.get("issue_name", ""),
+                        "질문": item.get("question", ""),
+                        "페르소나 응답": item.get("label", ""),
+                        "이유": item.get("reason", ""),
+                        "불확실성": item.get("uncertainty", ""),
                     }
-                    append_csv(EVALUATIONS_PATH, row)
-                    st.success("검증 기록이 저장되었습니다.")
+                    for idx, item in enumerate(responses)
+                ]
+            )
+            st.markdown("#### 페르소나의 10개 현안 5점 응답")
+            st.dataframe(response_df, width="stretch")
+
+            with st.form("issue_evaluation_form"):
+                st.markdown("#### 내 검증")
+                st.caption("각 현안별로 페르소나 응답이 나와 맞으면 ‘맞다’, 다르면 ‘틀리다’를 선택합니다. 틀린 경우 실제 내 응답 점수와 정정 이유를 적습니다.")
+                validation_inputs = []
+                for idx, item in enumerate(responses):
+                    st.markdown(f"**{idx + 1}. {item.get('issue_name', '')}**")
+                    st.write(f"페르소나 응답: **{item.get('label', '')}**")
+                    st.caption(item.get("verification_hint", ""))
+                    c1, c2 = st.columns([1, 1])
+                    with c1:
+                        verdict = st.radio(
+                            "검증",
+                            ["맞다", "틀리다"],
+                            horizontal=True,
+                            key=f"verdict_{idx}",
+                        )
+                    with c2:
+                        corrected_score = st.selectbox(
+                            "틀렸다면 실제 내 응답",
+                            options=list(LIKERT_LABELS.keys()),
+                            format_func=lambda value: LIKERT_LABELS[value],
+                            index=max(0, int(item.get("score", 3)) - 1),
+                            key=f"corrected_score_{idx}",
+                        )
+                    correction_reason = st.text_area(
+                        "틀린 이유 또는 정정 의견",
+                        placeholder="예: 나는 정책 개입에는 찬성하지만 비용 부담에는 더 신중하다.",
+                        key=f"correction_reason_{idx}",
+                        height=74,
+                    )
+                    validation_inputs.append(
+                        {
+                            "item": item,
+                            "verdict": verdict,
+                            "corrected_score": corrected_score,
+                            "correction_reason": correction_reason.strip(),
+                        }
+                    )
+                saved = st.form_submit_button("10개 검증 기록 저장")
+            if saved:
+                missing = [
+                    row["item"].get("issue_name", "")
+                    for row in validation_inputs
+                    if row["verdict"] == "틀리다" and not row["correction_reason"]
+                ]
+                if missing:
+                    st.error("틀리다로 표시한 현안에는 정정 의견을 입력해야 합니다: " + ", ".join(missing))
+                else:
+                    batch_id = now_iso()
+                    for row in validation_inputs:
+                        item = row["item"]
+                        append_csv(
+                            EVALUATIONS_PATH,
+                            {
+                                "created_at": batch_id,
+                                "email_hash": persona["profile"]["email_hash"],
+                                "persona_type": persona.get("persona_type", ""),
+                                "issue_name": item.get("issue_name", ""),
+                                "question": item.get("question", ""),
+                                "predicted_score": item.get("score", ""),
+                                "predicted_label": item.get("label", ""),
+                                "predicted_reason": item.get("reason", ""),
+                                "verdict": row["verdict"],
+                                "corrected_score": row["corrected_score"] if row["verdict"] == "틀리다" else "",
+                                "corrected_label": LIKERT_LABELS[row["corrected_score"]] if row["verdict"] == "틀리다" else "",
+                                "correction_reason": row["correction_reason"],
+                            },
+                        )
+                    st.success("10개 현안 검증 기록이 저장되었습니다.")
 
 with tab_admin:
     st.subheader("관리자 대시보드")
-    st.caption("Gemini 키, 모델, 전체 응답 기록은 관리자만 확인합니다.")
+    st.caption("분석 설정과 전체 응답 기록은 관리자만 확인합니다.")
 
     if not st.session_state.get("admin_authenticated", False):
         if not configured_admin_password():
@@ -951,7 +1097,7 @@ with tab_admin:
         runtime = gemini_runtime_config()
         st.markdown("#### Gemini 서버 설정")
         c1, c2, c3 = st.columns(3)
-        c1.metric("키 상태", gemini_status_label())
+        c1.metric("키 상태", gemini_admin_status_label())
         c2.metric("모델", runtime["GEMINI_MODEL"])
         c3.metric("런타임 설정", "있음" if runtime_config else "없음")
 
