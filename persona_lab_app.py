@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import hashlib
 import hmac
 import json
 import os
@@ -126,8 +125,12 @@ def valid_email(email: str) -> bool:
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email.strip()))
 
 
-def stable_id(email: str) -> str:
-    return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()[:12]
+def normalize_email(email: str) -> str:
+    return email.strip().lower()
+
+
+def safe_filename_part(text: str) -> str:
+    return re.sub(r"[^0-9A-Za-z가-힣_.-]+", "_", text).strip("_") or "user"
 
 
 def secret_value_and_source(name: str) -> tuple[str, str]:
@@ -261,11 +264,72 @@ def load_evaluations(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def latest_persona(email_hash: str) -> dict[str, Any] | None:
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        if path.exists():
+            path.unlink()
+        return
+    path.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_dataframe_csv(path: Path, df: pd.DataFrame) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if df.empty:
+        if path.exists():
+            path.unlink()
+        return
+    df.to_csv(path, index=False, encoding="utf-8")
+
+
+def profile_email(record: dict[str, Any]) -> str:
+    profile = record.get("profile", {})
+    return str(profile.get("email") or profile.get("email_hash") or "")
+
+
+def record_email_values(records: list[dict[str, Any]], evals: pd.DataFrame) -> list[str]:
+    values = {profile_email(record) for record in records if profile_email(record)}
+    for col in ["email", "email_hash"]:
+        if col in evals.columns:
+            values.update(str(value) for value in evals[col].dropna().tolist() if str(value))
+    return sorted(values)
+
+
+def delete_data_for_email(email_value: str) -> tuple[int, int]:
+    records = load_jsonl(RECORDS_PATH)
+    remaining_records = [record for record in records if profile_email(record) != email_value]
+    deleted_records = len(records) - len(remaining_records)
+    write_jsonl(RECORDS_PATH, remaining_records)
+
+    evals = load_evaluations(EVALUATIONS_PATH)
+    deleted_evals = 0
+    if not evals.empty:
+        mask = pd.Series(False, index=evals.index)
+        for col in ["email", "email_hash"]:
+            if col in evals.columns:
+                mask = mask | (evals[col].astype(str) == email_value)
+        deleted_evals = int(mask.sum())
+        write_dataframe_csv(EVALUATIONS_PATH, evals.loc[~mask].copy())
+    return deleted_records, deleted_evals
+
+
+def delete_all_data() -> tuple[int, int]:
+    record_count = len(load_jsonl(RECORDS_PATH))
+    eval_count = len(load_evaluations(EVALUATIONS_PATH))
+    for path in [RECORDS_PATH, EVALUATIONS_PATH]:
+        if path.exists():
+            path.unlink()
+    return record_count, eval_count
+
+
+def latest_persona(email: str) -> dict[str, Any] | None:
     records = [
         row
         for row in load_jsonl(RECORDS_PATH)
-        if row.get("profile", {}).get("email_hash") == email_hash and row.get("analysis_method") == "gemini"
+        if row.get("profile", {}).get("email") == email and row.get("analysis_method") == "gemini"
     ]
     if not records:
         return None
@@ -598,9 +662,9 @@ def call_gemini(api_key: str, model: str, prompt: str) -> tuple[str, dict[str, A
     return extract_interaction_text(data), data
 
 
-def build_profile(form: dict[str, Any], email_hash: str) -> dict[str, Any]:
+def build_profile(form: dict[str, Any], email: str) -> dict[str, Any]:
     return {
-        "email_hash": email_hash,
+        "email": email,
         "created_at": now_iso(),
         "demographics": {
             "age_range": form["age_range"],
@@ -682,7 +746,7 @@ def records_to_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
         rows.append(
             {
                 "created_at": profile.get("created_at", record.get("created_at", "")),
-                "email_hash": profile.get("email_hash", ""),
+                "email": profile.get("email") or profile.get("email_hash", ""),
                 "method": record.get("analysis_method", ""),
                 "persona_type": record.get("persona_type", ""),
                 "region": demo.get("region", ""),
@@ -808,11 +872,10 @@ with st.sidebar:
     st.header("세션")
     email = st.text_input("이메일", value=st.session_state.get("email", ""), placeholder="name@example.com")
     if email and valid_email(email):
-        st.session_state["email"] = email.strip().lower()
-        email_hash = stable_id(email)
-        st.success(f"세션 ID: {email_hash}")
+        st.session_state["email"] = normalize_email(email)
+        st.success(st.session_state["email"])
         if st.button("최근 페르소나 불러오기"):
-            loaded = latest_persona(email_hash)
+            loaded = latest_persona(st.session_state["email"])
             if loaded:
                 st.session_state["persona"] = loaded
                 st.session_state["profile"] = loaded.get("profile", {})
@@ -936,7 +999,7 @@ with tab_input:
                 "issue_attitudes": issue_attitudes,
                 "open_issue_note": open_issue_note.strip(),
             }
-            profile = build_profile(form, stable_id(st.session_state["email"]))
+            profile = build_profile(form, st.session_state["email"])
             st.session_state["profile"] = profile
             runtime = gemini_runtime_config()
             api_key = runtime["GEMINI_API_KEY"]
@@ -979,7 +1042,7 @@ with tab_persona:
         st.download_button(
             "개인 분석 보고서 다운로드",
             data=persona_report(persona, st.session_state.get("last_issue_answer")),
-            file_name=f"persona_report_{persona['profile']['email_hash']}.md",
+            file_name=f"persona_report_{safe_filename_part(persona['profile'].get('email', 'user'))}.md",
             mime="text/markdown",
         )
         with st.expander("분석 원본 JSON"):
@@ -1110,7 +1173,7 @@ with tab_issue:
                             EVALUATIONS_PATH,
                             {
                                 "created_at": batch_id,
-                                "email_hash": persona["profile"]["email_hash"],
+                                "email": persona["profile"].get("email", ""),
                                 "persona_type": persona.get("persona_type", ""),
                                 "issue_name": item.get("issue_name", ""),
                                 "question": item.get("question", ""),
@@ -1167,6 +1230,35 @@ with tab_admin:
         m1.metric("페르소나 기록", len(records))
         m2.metric("검증 기록", 0 if evals.empty else len(evals))
         m3.metric("저장 위치", "로컬 data/")
+
+        with st.expander("테스트 데이터 삭제", expanded=False):
+            st.warning("삭제한 기록은 복구할 수 없습니다. 테스트 기록을 정리할 때만 사용하세요.")
+            email_values = record_email_values(records, evals)
+            if email_values:
+                with st.form("delete_email_data_form"):
+                    selected_email = st.selectbox("삭제할 이메일 또는 기존 식별자", email_values)
+                    confirm_delete = st.text_input("선택 기록 삭제 확인 문구", placeholder="DELETE")
+                    delete_selected = st.form_submit_button("선택한 사용자 기록 삭제")
+                if delete_selected:
+                    if confirm_delete.strip() != "DELETE":
+                        st.error("삭제하려면 확인 문구에 DELETE를 입력하세요.")
+                    else:
+                        deleted_records, deleted_evals = delete_data_for_email(selected_email)
+                        st.success(f"{selected_email} 기록을 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
+                        st.rerun()
+            else:
+                st.info("삭제할 사용자 기록이 없습니다.")
+
+            with st.form("delete_all_data_form"):
+                confirm_all = st.text_input("전체 테스트 데이터 삭제 확인 문구", placeholder="DELETE ALL")
+                delete_all = st.form_submit_button("전체 테스트 데이터 삭제")
+            if delete_all:
+                if confirm_all.strip() != "DELETE ALL":
+                    st.error("전체 삭제하려면 확인 문구에 DELETE ALL을 입력하세요.")
+                else:
+                    deleted_records, deleted_evals = delete_all_data()
+                    st.success(f"전체 테스트 데이터를 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
+                    st.rerun()
 
         if records:
             score_df = records_to_frame(records)
