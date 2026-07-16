@@ -114,6 +114,21 @@ ISSUE_ITEMS = [
     ("platform_labor", "플랫폼 노동과 프리랜서 노동에 대한 사회보장 장치가 필요하다"),
 ]
 
+CAREER_COOPERATION_ITEMS = [
+    ("job_entry_barrier", "주니어의 취업 어려움은 개인 노력만이 아니라 첫 기회 부족과 채용 구조의 영향이 크다"),
+    ("portfolio_feedback", "포트폴리오는 혼자 만드는 것보다 현업자·동료 피드백을 거쳐야 실질적인 경쟁력이 생긴다"),
+    ("senior_mentoring", "현장 경험이 많은 시니어의 멘토링은 주니어의 시행착오를 줄이는 데 중요하다"),
+    ("senior_collaboration", "시니어와 주니어가 함께 프로젝트를 수행하면 서로에게 실질적인 학습 효과가 있다"),
+    ("peer_learning", "취업 준비 과정에서 동료 학습, 스터디, 프로젝트 팀 활동은 중요한 안전망이다"),
+    ("startup_as_option", "취업이 어렵다면 창업이나 사이드 프로젝트도 진로 실험의 현실적인 선택지가 될 수 있다"),
+    ("team_startup", "창업은 개인 아이디어보다 팀 구성, 역할 분담, 협업 방식이 성공 가능성을 더 크게 좌우한다"),
+    ("regional_collaboration", "지역 기업·공공기관·대학이 함께 만드는 프로젝트가 청년의 실무 경험을 넓힐 수 있다"),
+    ("fair_compensation", "시니어 협업이나 현장 프로젝트에서는 주니어의 노동과 기여에 대한 공정한 보상이 필요하다"),
+    ("failure_sharing", "취업 실패, 전환, 재도전 경험을 공개적으로 공유하는 문화가 청년에게 도움이 된다"),
+    ("communication_skill", "기술 역량만큼 질문하기, 조율하기, 피드백 받기 같은 협업 역량이 중요하다"),
+    ("social_bridge", "청년·시니어·지역사회가 연결되는 네트워크가 취업과 창업의 불확실성을 줄일 수 있다"),
+]
+
 LIKERT_LABELS = {
     1: "1점 매우 반대",
     2: "2점 반대",
@@ -145,29 +160,29 @@ IDEOLOGY_LABELS = {
 }
 
 CURRENT_ISSUES = {
-    "AI 규제와 저작권": "생성형 AI가 만든 결과물의 저작권과 학습 데이터 사용을 어떻게 규제해야 할까?",
-    "청년 고용과 포트폴리오": "채용에서 AI 활용 경험을 어떤 기준으로 평가하는 것이 공정할까?",
-    "주거비와 청년 삶": "청년 주거비 부담을 줄이기 위해 공공 정책은 어디까지 개입해야 할까?",
-    "기후위기와 에너지 비용": "탄소 감축을 위해 에너지 비용 상승을 어느 정도까지 받아들일 수 있을까?",
-    "개인정보와 공공안전": "범죄 예방이나 행정 효율을 위해 개인정보 활용을 확대해도 될까?",
-    "지역소멸과 대학": "지역 대학과 청년 인재가 지역소멸 문제 해결에 어떤 역할을 해야 할까?",
-    "다문화와 사회통합": "이주민과 다문화 구성원의 사회 참여를 확대하기 위해 무엇이 필요할까?",
-    "플랫폼 노동": "배달, 프리랜서, 플랫폼 노동자의 권리 보장을 어떻게 설계해야 할까?",
-    "저출생과 돌봄": "저출생 문제를 개인 선택이 아니라 사회 구조 문제로 다루려면 무엇이 바뀌어야 할까?",
-    "대학 등록금과 교육 기회": "대학 등록금과 교육비 부담을 줄이기 위해 공공 지원을 확대해야 할까?",
+    "주니어 취업 진입장벽": "취업 준비 중인 주니어가 '스펙과 포트폴리오를 쌓아도 첫 기회를 얻기 어렵다'고 묻는다면, 이 어려움은 개인 역량보다 채용 구조와 기회 배분의 문제라고 보는가?",
+    "실무 경험 격차": "주니어가 '실무 경험이 없어서 취업이 어렵다'고 묻는다면, 대학·기업·지역기관이 프로젝트형 실무 경험을 더 제공해야 한다고 보는가?",
+    "시니어 멘토링": "주니어가 '혼자 준비하다 보니 방향을 모르겠다'고 묻는다면, 현장 경험이 많은 시니어 멘토와의 정기적 협업이 필요하다고 보는가?",
+    "세대 협업 프로젝트": "주니어와 시니어가 함께 문제를 정의하고 결과물을 만드는 프로젝트가 단순 특강보다 취업 준비에 더 도움이 된다고 보는가?",
+    "창업과 사이드 프로젝트": "주니어가 '취업이 막막할 때 창업이나 사이드 프로젝트를 시도해도 될까'라고 묻는다면, 작은 실험형 창업이 진로 탐색에 도움이 된다고 보는가?",
+    "팀 기반 창업": "주니어 단독 창업보다 동료, 시니어, 지역 전문가가 함께 역할을 나누는 팀 기반 창업이 더 현실적이라고 보는가?",
+    "AI 포트폴리오 검증": "주니어가 AI 도구로 만든 포트폴리오를 제출할 때, 실제 사용자·시니어 멘토·동료의 피드백 기록까지 함께 검증해야 한다고 보는가?",
+    "지역 협력 기회": "목포대와 전남권 지역 기업·공공기관·사회단체가 청년 프로젝트를 함께 만들면 수도권 중심 취업 격차를 줄이는 데 도움이 된다고 보는가?",
+    "공정한 협업 보상": "시니어 협업이나 현장 프로젝트에서 주니어가 배우는 입장이라도 노동과 기여에 대한 보상·저작권·역할 합의가 필요하다고 보는가?",
+    "실패 공유와 재도전": "취업 실패, 창업 실패, 진로 전환 경험을 공개적으로 공유하는 커뮤니티가 주니어의 불안과 고립을 줄인다고 보는가?",
 }
 
 ISSUE_ANCHOR_MAP = {
-    "AI 규제와 저작권": ["ai_regulation", "privacy"],
-    "청년 고용과 포트폴리오": ["youth_jobs", "platform_labor"],
-    "주거비와 청년 삶": ["housing_policy", "inequality"],
-    "기후위기와 에너지 비용": ["climate_transition"],
-    "개인정보와 공공안전": ["privacy", "ai_regulation"],
-    "지역소멸과 대학": ["regional_decline", "youth_jobs"],
-    "다문화와 사회통합": ["multicultural"],
-    "플랫폼 노동": ["platform_labor", "inequality"],
-    "저출생과 돌봄": ["youth_jobs", "inequality", "housing_policy"],
-    "대학 등록금과 교육 기회": ["inequality", "youth_jobs"],
+    "주니어 취업 진입장벽": ["youth_jobs", "job_entry_barrier", "inequality"],
+    "실무 경험 격차": ["portfolio_feedback", "regional_collaboration", "youth_jobs"],
+    "시니어 멘토링": ["senior_mentoring", "social_bridge", "communication_skill"],
+    "세대 협업 프로젝트": ["senior_collaboration", "peer_learning", "communication_skill"],
+    "창업과 사이드 프로젝트": ["startup_as_option", "team_startup", "platform_labor"],
+    "팀 기반 창업": ["team_startup", "senior_collaboration", "communication_skill"],
+    "AI 포트폴리오 검증": ["ai_regulation", "portfolio_feedback", "communication_skill"],
+    "지역 협력 기회": ["regional_collaboration", "regional_decline", "university_trust"],
+    "공정한 협업 보상": ["fair_compensation", "platform_labor", "inequality"],
+    "실패 공유와 재도전": ["failure_sharing", "peer_learning", "social_bridge"],
 }
 
 
@@ -337,7 +352,15 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
 def load_evaluations(path: Path) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
+    df = pd.read_csv(path)
+    if "email" not in df.columns:
+        df["email"] = ""
+    df["email"] = df["email"].fillna("").astype(str)
+    df.loc[df["email"].isin(["None", "nan", "NaN"]), "email"] = ""
+    if "email_hash" in df.columns:
+        df = df.drop(columns=["email_hash"])
+        write_dataframe_csv(path, df)
+    return df
 
 
 def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -367,10 +390,16 @@ def profile_email(record: dict[str, Any]) -> str:
 
 
 def record_email_values(records: list[dict[str, Any]], evals: pd.DataFrame) -> list[str]:
-    values = {profile_email(record) for record in records if profile_email(record)}
-    for col in ["email", "email_hash"]:
-        if col in evals.columns:
-            values.update(str(value) for value in evals[col].dropna().tolist() if str(value))
+    values = {
+        str(record.get("profile", {}).get("email", "")).strip()
+        for record in records
+        if str(record.get("profile", {}).get("email", "")).strip()
+    }
+    if "email" in evals.columns:
+        values.update(str(value).strip() for value in evals["email"].dropna().tolist() if str(value).strip())
+    values.discard("None")
+    values.discard("nan")
+    values.discard("NaN")
     return sorted(values)
 
 
@@ -390,6 +419,67 @@ def delete_data_for_email(email_value: str) -> tuple[int, int]:
         deleted_evals = int(mask.sum())
         write_dataframe_csv(EVALUATIONS_PATH, evals.loc[~mask].copy())
     return deleted_records, deleted_evals
+
+
+def delete_persona_record_by_index(index: int) -> bool:
+    records = load_jsonl(RECORDS_PATH)
+    if index < 0 or index >= len(records):
+        return False
+    del records[index]
+    write_jsonl(RECORDS_PATH, records)
+    return True
+
+
+def delete_current_persona_record(persona: dict[str, Any]) -> int:
+    records = load_jsonl(RECORDS_PATH)
+    profile = persona.get("profile", {})
+    target_email = profile.get("email", "")
+    target_created_at = profile.get("created_at", "")
+    target_type = persona.get("persona_type", "")
+    remaining = []
+    deleted = 0
+    for record in records:
+        record_profile = record.get("profile", {})
+        if (
+            record_profile.get("email", "") == target_email
+            and record_profile.get("created_at", "") == target_created_at
+            and record.get("persona_type", "") == target_type
+        ):
+            deleted += 1
+            continue
+        remaining.append(record)
+    if deleted:
+        write_jsonl(RECORDS_PATH, remaining)
+    return deleted
+
+
+def delete_evaluation_rows(row_indices: list[int]) -> int:
+    evals = load_evaluations(EVALUATIONS_PATH)
+    if evals.empty:
+        return 0
+    valid_indices = [idx for idx in row_indices if idx in evals.index]
+    if not valid_indices:
+        return 0
+    write_dataframe_csv(EVALUATIONS_PATH, evals.drop(index=valid_indices).reset_index(drop=True))
+    return len(valid_indices)
+
+
+def delete_evaluations_for_email(email_value: str) -> int:
+    evals = load_evaluations(EVALUATIONS_PATH)
+    if evals.empty or "email" not in evals.columns:
+        return 0
+    mask = evals["email"].fillna("").astype(str) == email_value
+    deleted = int(mask.sum())
+    if deleted:
+        write_dataframe_csv(EVALUATIONS_PATH, evals.loc[~mask].reset_index(drop=True))
+    return deleted
+
+
+def delete_all_evaluations() -> int:
+    eval_count = len(load_evaluations(EVALUATIONS_PATH))
+    if EVALUATIONS_PATH.exists():
+        EVALUATIONS_PATH.unlink()
+    return eval_count
 
 
 def delete_all_data() -> tuple[int, int]:
@@ -414,6 +504,7 @@ def latest_persona(email: str) -> dict[str, Any] | None:
 
 def compute_axes(profile: dict[str, Any]) -> dict[str, int]:
     issues = profile["issue_attitudes"]
+    cooperation = profile.get("career_cooperation", {})
     trust = profile["institutional_trust"]
     ideology = profile["political_ideology"]
     ideology_center_distance = abs(ideology - 5)
@@ -450,6 +541,31 @@ def compute_axes(profile: dict[str, Any]) -> dict[str, int]:
             slider_score(profile["public_discussion_comfort"]),
         ]
     )
+    career_cooperation = avg(
+        [
+            slider_score(cooperation.get("job_entry_barrier", 3)),
+            slider_score(cooperation.get("portfolio_feedback", 3)),
+            slider_score(cooperation.get("peer_learning", 3)),
+            slider_score(cooperation.get("communication_skill", 3)),
+            slider_score(cooperation.get("social_bridge", 3)),
+        ]
+    )
+    senior_collaboration = avg(
+        [
+            slider_score(cooperation.get("senior_mentoring", 3)),
+            slider_score(cooperation.get("senior_collaboration", 3)),
+            slider_score(cooperation.get("communication_skill", 3)),
+            slider_score(cooperation.get("fair_compensation", 3)),
+        ]
+    )
+    startup_experiment = avg(
+        [
+            slider_score(cooperation.get("startup_as_option", 3)),
+            slider_score(cooperation.get("team_startup", 3)),
+            slider_score(cooperation.get("failure_sharing", 3)),
+            slider_score(cooperation.get("regional_collaboration", 3)),
+        ]
+    )
 
     return {
         "사회개혁 지향": social_reform,
@@ -458,6 +574,9 @@ def compute_axes(profile: dict[str, Any]) -> dict[str, int]:
         "제도 신뢰": institutional_trust,
         "근거 검증 성향": evidence_orientation,
         "공론장 참여 성향": civic_participation,
+        "진로 협력 지향": career_cooperation,
+        "시니어 협업 수용성": senior_collaboration,
+        "창업 실험 지향": startup_experiment,
         "이념 선명도": round(ideology_center_distance / 5 * 100),
     }
 
@@ -470,6 +589,12 @@ def rule_based_persona(profile: dict[str, Any]) -> dict[str, Any]:
     if axes["근거 검증 성향"] >= 72 and axes["기술규제 신중성"] >= 65:
         persona_type = "근거 검증형 기술 신중론자"
         summary = "새 기술의 효용을 인정하되, 개인정보·저작권·차별 같은 부작용을 근거 중심으로 확인하려는 경향이 강하다."
+    elif axes["시니어 협업 수용성"] >= 70 and axes["진로 협력 지향"] >= 65:
+        persona_type = "세대 협업형 진로 탐색자"
+        summary = "취업 준비의 어려움을 개인 문제로만 보지 않고, 시니어 멘토링과 동료 협업을 통해 실무 경험과 방향성을 만들려는 경향이 강하다."
+    elif axes["창업 실험 지향"] >= 70 and axes["진로 협력 지향"] >= 60:
+        persona_type = "팀 창업 실험형 문제 해결자"
+        summary = "취업만을 유일한 경로로 보기보다 팀 기반 프로젝트, 사이드 프로젝트, 지역 협력 창업을 통해 진로 가능성을 실험하려는 경향이 있다."
     elif axes["사회개혁 지향"] >= 70 and axes["정책개입 선호"] >= 65:
         persona_type = "사회문제 해결형 정책 지지자"
         summary = "불평등, 주거, 고용, 지역 문제를 개인 책임보다 사회 구조와 제도 설계의 문제로 보는 경향이 있다."
@@ -488,13 +613,16 @@ def rule_based_persona(profile: dict[str, Any]) -> dict[str, Any]:
         f"정치 성향 자기배치: {ideology}/10",
         f"정치 관심: {profile['political_interest']}/5",
         f"주요 정보 출처: {', '.join(profile['information_sources']) or '미입력'}",
-        f"사회 현안 자유응답: {profile['open_issue_note'] or '미입력'}",
+        f"진로 협력 지향: {axes.get('진로 협력 지향', 0)}점",
+        f"시니어 협업 수용성: {axes.get('시니어 협업 수용성', 0)}점",
+        f"창업 실험 지향: {axes.get('창업 실험 지향', 0)}점",
+        f"취업·창업·협업 자유응답: {profile['open_issue_note'] or '미입력'}",
     ]
 
     uncertainty = [
         "이 분석은 사회조사형 자기응답을 바탕으로 한 가설이며 실제 성격 진단이 아니다.",
         "정당 선호, 투표 선택, 민감한 개인 신념은 입력하지 않았으므로 추정하지 않는다.",
-        "문항 수가 제한되어 있어 현안별 실제 판단은 질문 맥락에 따라 달라질 수 있다.",
+        "문항 수가 제한되어 있어 진로·협업 질문별 실제 판단은 질문 맥락에 따라 달라질 수 있다.",
     ]
 
     return {
@@ -516,14 +644,15 @@ def compact_profile(profile: dict[str, Any]) -> str:
 def persona_prompt(profile: dict[str, Any]) -> str:
     return f"""
 당신은 사회조사 방법론과 페르소나 기반 사회시뮬레이션을 설명하는 연구 보조자다.
-아래 응답은 수업 실습용 자기응답이다. 이 자료를 바탕으로 사용자의 사회 현안 판단 페르소나를 분석하라.
+아래 응답은 수업 실습용 자기응답이다. 이 자료를 바탕으로 사용자의 진로 판단, 취업 어려움 인식, 창업 실험 성향, 시니어 협업 수용성, 사회적 협력 성향을 분석하라.
 
 중요 원칙:
 1. 실제 성격 진단, 정신상태 진단, 투표 선택 예측, 정당 지지 추정은 하지 않는다.
 2. 입력하지 않은 민감정보를 단정하지 않는다.
 3. 사회조사형 문항에서 확인되는 경향, 근거, 불확실성을 분리한다.
-4. 분석은 한국어로 작성한다.
+4. 분석은 한국어로 작성하고, 주니어가 취업·창업·협업 문제를 어떻게 바라볼지 설명한다.
 5. JSON만 출력한다. 설명 문장, 마크다운 코드펜스, 불필요한 주석을 붙이지 않는다.
+6. 페르소나는 기술 능력 자체보다 취업 진입장벽, 실무 경험 부족, 포트폴리오 검증, 시니어 멘토링, 팀 창업, 지역 협력, 공정한 보상, 실패 공유 문화를 중심으로 해석한다.
 
 참고한 문항 설계 축:
 {json.dumps(SURVEY_BASIS, ensure_ascii=False, indent=2)}
@@ -535,14 +664,14 @@ def persona_prompt(profile: dict[str, Any]) -> str:
 {{
   "persona_title": "짧은 페르소나 이름",
   "one_sentence": "한 문장 요약",
-  "detailed_summary": "6~8문장 분석. 인구통계, 정치 관심, 제도 신뢰, 사회 현안 태도, 정보 출처를 함께 해석",
+  "detailed_summary": "8~10문장 분석. 인구통계, 정치 관심, 제도 신뢰, 사회 현안 태도, 정보 출처, 취업 어려움 인식, 창업 실험 성향, 시니어 협업 수용성, 사회적 협력 성향을 함께 해석",
   "axes": [
     {{"name": "축 이름", "score": 0-100, "interpretation": "해석", "evidence": ["입력 근거1", "입력 근거2"]}}
   ],
   "likely_responses": [
-    {{"issue": "현안명", "likely_position": "예상 반응", "reason": "근거", "uncertainty": "불확실성"}}
+    {{"issue": "취업·창업·시니어 협업 검증 질문명", "likely_position": "예상 반응", "reason": "근거", "uncertainty": "불확실성"}}
   ],
-  "validation_questions": ["추가로 확인해야 할 질문1", "질문2", "질문3"],
+  "validation_questions": ["취업 준비 방식에 대한 추가 질문1", "시니어 협업에 대한 질문2", "창업 실험에 대한 질문3"],
   "do_not_infer": ["추정하면 안 되는 정보1", "정보2"],
   "portfolio_sentence": "이 실습을 포트폴리오에 설명하는 한 문장"
 }}
@@ -552,13 +681,19 @@ def persona_prompt(profile: dict[str, Any]) -> str:
 def issue_anchor_context(persona: dict[str, Any], issues: dict[str, str]) -> list[dict[str, Any]]:
     profile = persona.get("profile", {})
     attitudes = profile.get("issue_attitudes", {})
+    cooperation = profile.get("career_cooperation", {})
+    trust = profile.get("institutional_trust", {})
     context = []
     for issue_name, question in issues.items():
         fields = ISSUE_ANCHOR_MAP.get(issue_name, [])
         values = []
         for field in fields:
             if field in attitudes:
-                values.append({"field": field, "score_1_to_5": attitudes[field]})
+                values.append({"field": field, "source": "사회 현안 태도", "score_1_to_5": attitudes[field]})
+            elif field in cooperation:
+                values.append({"field": field, "source": "진로 협력·창업·시니어 협업 성향", "score_1_to_5": cooperation[field]})
+            elif field in trust:
+                values.append({"field": field, "source": "제도 신뢰", "score_1_to_5": trust[field]})
         context.append(
             {
                 "issue_name": issue_name,
@@ -571,12 +706,12 @@ def issue_anchor_context(persona: dict[str, Any], issues: dict[str, str]) -> lis
 
 def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
     return f"""
-당신은 아래 페르소나 분석 결과를 바탕으로 실제 사회조사에 참여한 응답자처럼 답한다.
-목표는 "이 페르소나가 실제 사람처럼 10개 현안에 어떻게 응답할지"를 시뮬레이션하고, 이후 사용자가 맞다/틀리다로 검증하게 하는 것이다.
+당신은 아래 페르소나 분석 결과를 바탕으로, 취업과 진로를 고민하는 주니어의 질문에 실제 사람처럼 답하는 시뮬레이션 응답자다.
+목표는 "이 페르소나가 주니어의 취업 어려움, 창업 가능성, 시니어 협업, 지역 협력 질문에 어떻게 응답할지"를 시뮬레이션하고, 이후 사용자가 맞다/틀리다로 검증하게 하는 것이다.
 따라서 분석 보고서처럼 회피하지 말고, 실제 설문 응답자처럼 1~5점 중 하나를 선택한다.
 정당 지지, 투표 선택, 입력되지 않은 민감정보는 새로 추정하지 않는다.
 응답은 한국어 JSON만 출력한다.
-각 현안에 대해 1~5점 리커트 척도로 답한다.
+각 진로·협업 검증 질문에 대해 1~5점 리커트 척도로 답한다.
 
 척도:
 1 = 매우 반대
@@ -587,29 +722,33 @@ def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
 
 응답 원칙:
 - 출력 문장은 실제 설문 응답자의 답변처럼 쓴다. 메타 설명이나 분석 보고서 표현을 반복하지 않는다.
+- response_text는 주니어에게 조언하듯 쓰되, 설교가 아니라 자신의 판단을 말하는 1인칭 문장으로 쓴다.
+- 취업 어려움은 개인 노력, 기회 구조, 실무 경험 부족, 포트폴리오 검증, 관계망 부족을 함께 고려한다.
+- 창업은 무조건 권유하거나 반대하지 말고, 팀 구성, 작은 실험, 지역 문제, 시니어 협업 가능성을 조건으로 판단한다.
+- 시니어 협업은 멘토링 효과와 동시에 공정한 보상, 역할 합의, 주니어의 주체성을 함께 고려한다.
 - 3점은 정말 판단이 혼합되거나 입력 근거가 약할 때만 사용한다.
 - 10개 응답 중 3점은 최대 2개까지만 허용한다.
 - 10개 모두 같은 점수, 특히 모두 3점은 실패다.
 - related_input_scores의 1~5점 입력값은 가장 강한 앵커다. 특별한 반대 근거가 없으면 같은 방향으로 응답한다.
 - 입력값이 4 또는 5이면 원칙적으로 4~5점, 입력값이 1 또는 2이면 원칙적으로 1~2점으로 응답한다.
 - 여러 입력값이 충돌하면 정치 관심, 제도 신뢰, 근거 검증 성향, 상세 페르소나 요약을 함께 고려해 하나를 고른다.
-- 각 현안에 대해 실제 응답자처럼 1인칭 응답 문장을 작성한다. 예: "나는 공공 개입이 더 필요하다고 보는 편이다."
+- 각 질문에 대해 실제 응답자처럼 1인칭 응답 문장을 작성한다. 예: "나는 혼자 준비하기보다 시니어 피드백을 받는 편이 더 현실적이라고 본다."
 
 페르소나:
 {json.dumps(persona, ensure_ascii=False, indent=2)}
 
-현안 목록:
+진로·협업 검증 질문 목록:
 {json.dumps([{"issue_name": key, "question": value} for key, value in issues.items()], ensure_ascii=False, indent=2)}
 
-현안별 입력 문항 앵커:
+질문별 입력 문항 앵커:
 {json.dumps(issue_anchor_context(persona, issues), ensure_ascii=False, indent=2)}
 
 출력 JSON 스키마:
 {{
-  "overall_pattern": "10개 현안 응답의 전체 경향 2~3문장",
+  "overall_pattern": "10개 진로·협업 질문 응답의 전체 경향 2~3문장",
   "responses": [
     {{
-      "issue_name": "현안명",
+      "issue_name": "질문명",
       "question": "질문",
       "score": 1,
       "label": "1점 매우 반대",
@@ -623,7 +762,7 @@ def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
 }}
 
 주의:
-- responses는 반드시 위 현안 목록과 같은 순서로 정확히 10개를 출력한다.
+- responses는 반드시 위 질문 목록과 같은 순서로 정확히 10개를 출력한다.
 - score는 반드시 정수 1,2,3,4,5 중 하나다.
 - reason에는 입력 근거와 연결되는 설명을 넣는다.
 - response_text는 분석문이 아니라 실제 설문 응답자처럼 쓴다.
@@ -835,6 +974,7 @@ def build_profile(form: dict[str, Any], email: str) -> dict[str, Any]:
         "information_sources": form["information_sources"],
         "institutional_trust": form["institutional_trust"],
         "issue_attitudes": form["issue_attitudes"],
+        "career_cooperation": form["career_cooperation"],
         "open_issue_note": form["open_issue_note"],
         "future_focus": form["future_focus"],
     }
@@ -890,14 +1030,15 @@ def normalize_llm_persona(profile: dict[str, Any], llm_json: dict[str, Any] | No
 
 def records_to_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
     rows = []
-    for record in records:
+    for idx, record in enumerate(records):
         profile = record.get("profile", {})
         demo = profile.get("demographics", {})
         axes = record.get("axes", {})
         rows.append(
             {
+                "record_id": idx,
                 "created_at": profile.get("created_at", record.get("created_at", "")),
-                "email": profile.get("email") or profile.get("email_hash", ""),
+                "email": profile.get("email") or "",
                 "method": record.get("analysis_method", ""),
                 "persona_type": record.get("persona_type", ""),
                 "region": demo.get("region", ""),
@@ -907,6 +1048,20 @@ def records_to_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def evaluations_to_frame(evals: pd.DataFrame) -> pd.DataFrame:
+    if evals.empty:
+        return pd.DataFrame()
+    display_df = evals.copy()
+    if "email" not in display_df.columns:
+        display_df["email"] = ""
+    display_df["email"] = display_df["email"].fillna("").astype(str)
+    display_df.loc[display_df["email"].isin(["None", "nan", "NaN"]), "email"] = ""
+    if "email_hash" in display_df.columns:
+        display_df = display_df.drop(columns=["email_hash"])
+    display_df.insert(0, "record_id", display_df.index)
+    return display_df
 
 
 def persona_report(persona: dict[str, Any], answer: dict[str, Any] | None = None) -> str:
@@ -1057,7 +1212,7 @@ st.markdown(
 )
 
 st.title("사회조사형 페르소나 시뮬레이션")
-st.caption("인구통계·정치 관심·제도 신뢰·사회 현안 태도를 입력하고 페르소나 분석 결과와 현안 질문 응답을 검증합니다.")
+st.caption("인구통계·정치 관심·제도 신뢰·진로 협력 성향을 입력하고 페르소나 분석 결과와 취업·창업·시니어 협업 질문 응답을 검증합니다.")
 
 with st.sidebar:
     st.header("세션")
@@ -1083,14 +1238,14 @@ with st.sidebar:
     st.caption(f"모델: {runtime['GEMINI_MODEL']}")
 
 tab_start, tab_input, tab_persona, tab_issue, tab_admin = st.tabs(
-    ["1. 설계", "2. 사회조사 입력", "3. 페르소나 분석", "4. 현안 질문 검증", "5. 관리자 대시보드"]
+    ["1. 설계", "2. 사회조사 입력", "3. 페르소나 분석", "4. 진로 질문 검증", "5. 관리자 대시보드"]
 )
 
 with tab_start:
     st.subheader("문항 설계 기준")
     st.write(
         "이 앱은 단일 기후위기 문항이 아니라 사회조사에서 자주 쓰는 축을 축약해 사용합니다. "
-        "인구통계학적 정보, 사회경제적 자기평가, 정치 관심, 이념 자기배치, 제도 신뢰, 미디어 이용, 사회 현안 태도를 함께 입력합니다."
+        "인구통계학적 정보, 사회경제적 자기평가, 정치 관심, 이념 자기배치, 제도 신뢰, 미디어 이용, 사회 현안 태도와 진로 협력 성향을 함께 입력합니다."
     )
     for source in SURVEY_BASIS:
         st.write(f"- {source}")
@@ -1187,9 +1342,16 @@ with tab_input:
             with issue_cols[idx % 2]:
                 issue_attitudes[key] = score_radio(label, LIKERT_LABELS, default=3, key=f"issue_{key}")
 
+        st.markdown("#### E. 진로 협력·창업·시니어 협업 성향")
+        career_cooperation = {}
+        cooperation_cols = st.columns(2)
+        for idx, (key, label) in enumerate(CAREER_COOPERATION_ITEMS):
+            with cooperation_cols[idx % 2]:
+                career_cooperation[key] = score_radio(label, LIKERT_LABELS, default=3, key=f"career_{key}")
+
         open_issue_note = st.text_area(
-            "최근 관심 있는 사회 현안과 그 이유",
-            "AI 규제와 청년 고용 문제가 앞으로의 진로와 연결된다고 느낀다.",
+            "최근 가장 크게 느끼는 취업·창업·협업 고민과 그 이유",
+            "첫 실무 경험을 어떻게 만들지, 시니어와 협업하면 어떤 도움을 받을 수 있을지 고민된다.",
             height=100,
         )
         consent = st.checkbox("수업 실습을 위해 입력값과 검증 기록을 로컬 파일에 저장하는 것에 동의합니다.")
@@ -1219,6 +1381,7 @@ with tab_input:
                 "information_sources": information_sources,
                 "institutional_trust": institutional_trust,
                 "issue_attitudes": issue_attitudes,
+                "career_cooperation": career_cooperation,
                 "open_issue_note": open_issue_note.strip(),
             }
             profile = build_profile(form, st.session_state["email"])
@@ -1271,20 +1434,34 @@ with tab_persona:
             file_name=f"persona_report_{safe_filename_part(persona['profile'].get('email', 'user'))}.md",
             mime="text/markdown",
         )
+        with st.expander("현재 페르소나 기록 삭제", expanded=False):
+            st.warning("현재 화면의 페르소나 기록만 삭제합니다. 이미 저장된 검증 기록은 관리자 대시보드에서 별도로 삭제합니다.")
+            with st.form("delete_current_persona_form"):
+                confirm_current_persona = st.text_input("삭제 확인 문구", placeholder="DELETE")
+                delete_current_persona = st.form_submit_button("현재 페르소나 삭제")
+            if delete_current_persona:
+                if confirm_current_persona.strip() != "DELETE":
+                    st.error("삭제하려면 DELETE를 입력하세요.")
+                else:
+                    deleted = delete_current_persona_record(persona)
+                    st.session_state.pop("persona", None)
+                    st.session_state.pop("last_issue_answer", None)
+                    st.success(f"현재 페르소나 기록 {deleted}건을 삭제했습니다.")
+                    st.rerun()
         with st.expander("분석 원본 JSON"):
             st.json({k: v for k, v in persona.items() if k != "raw_response"})
 
 with tab_issue:
-    st.subheader("10개 현안 5점 응답 검증")
+    st.subheader("10개 진로·협업 질문 5점 응답 검증")
     persona = st.session_state.get("persona")
     if not persona:
         st.info("2번 입력 탭에서 페르소나를 먼저 분석하세요.")
     else:
-        st.write("아래 10개 현안에 대해 페르소나가 1~5점 척도로 응답합니다. 이후 각 응답을 맞다/틀리다로 검증합니다.")
+        st.write("아래 10개 질문에 대해 페르소나가 주니어의 취업 어려움, 창업, 시니어 협업, 지역 협력 관점에서 1~5점 척도로 응답합니다. 이후 각 응답을 맞다/틀리다로 검증합니다.")
         st.dataframe(
             pd.DataFrame(
                 [
-                    {"번호": idx + 1, "현안": issue_name, "질문": question}
+                    {"번호": idx + 1, "검증 질문": issue_name, "주니어 질문 문장": question}
                     for idx, (issue_name, question) in enumerate(CURRENT_ISSUES.items())
                 ]
             ),
@@ -1295,12 +1472,12 @@ with tab_issue:
         api_key = runtime["GEMINI_API_KEY"]
         model = runtime["GEMINI_MODEL"]
 
-        if st.button("10개 현안 응답 생성", type="primary"):
+        if st.button("10개 진로·협업 응답 생성", type="primary"):
             if not api_key:
-                st.error("현안 응답 분석 환경이 아직 준비되지 않았습니다. 관리자에게 Streamlit Secrets 설정을 확인해 달라고 요청하세요.")
+                st.error("진로·협업 응답 분석 환경이 아직 준비되지 않았습니다. 관리자에게 Streamlit Secrets 설정을 확인해 달라고 요청하세요.")
                 st.stop()
-            with st.status("페르소나가 10개 현안에 대해 5점 척도로 응답하는 중입니다.", expanded=True) as status:
-                st.write("페르소나 분석 결과와 10개 현안 목록을 결합합니다.")
+            with st.status("페르소나가 10개 진로·협업 질문에 대해 5점 척도로 응답하는 중입니다.", expanded=True) as status:
+                st.write("페르소나 분석 결과와 10개 진로·협업 질문 목록을 결합합니다.")
                 try:
                     raw_text, raw_response = call_gemini(api_key, model, issue_prompt(persona, CURRENT_ISSUES))
                     issue_json = parse_json_from_text(raw_text)
@@ -1332,7 +1509,7 @@ with tab_issue:
                 [
                     {
                         "번호": idx + 1,
-                        "현안": item.get("issue_name", ""),
+                        "검증 질문": item.get("issue_name", ""),
                         "질문": item.get("question", ""),
                         "페르소나 응답": item.get("label", ""),
                         "응답 문장": item.get("response_text", ""),
@@ -1343,12 +1520,12 @@ with tab_issue:
                     for idx, item in enumerate(responses)
                 ]
             )
-            st.markdown("#### 페르소나의 10개 현안 5점 응답")
+            st.markdown("#### 페르소나의 10개 진로·협업 5점 응답")
             st.dataframe(response_df, width="stretch")
 
             with st.form("issue_evaluation_form"):
                 st.markdown("#### 내 검증")
-                st.caption("각 현안별로 페르소나 응답이 나와 맞으면 ‘맞다’, 다르면 ‘틀리다’를 선택합니다. 틀린 경우 실제 내 응답 점수와 정정 이유를 적습니다.")
+                st.caption("각 질문별로 페르소나 응답이 나와 맞으면 ‘맞다’, 다르면 ‘틀리다’를 선택합니다. 틀린 경우 실제 내 응답 점수와 정정 이유를 적습니다.")
                 validation_inputs = []
                 for idx, item in enumerate(responses):
                     st.markdown(f"**{idx + 1}. {item.get('issue_name', '')}**")
@@ -1394,16 +1571,17 @@ with tab_issue:
                     if row["verdict"] == "틀리다" and not row["correction_reason"]
                 ]
                 if missing:
-                    st.error("틀리다로 표시한 현안에는 정정 의견을 입력해야 합니다: " + ", ".join(missing))
+                    st.error("틀리다로 표시한 질문에는 정정 의견을 입력해야 합니다: " + ", ".join(missing))
                 else:
                     batch_id = now_iso()
+                    evaluation_email = persona["profile"].get("email") or st.session_state.get("email", "")
                     for row in validation_inputs:
                         item = row["item"]
                         append_csv(
                             EVALUATIONS_PATH,
                             {
                                 "created_at": batch_id,
-                                "email": persona["profile"].get("email", ""),
+                                "email": evaluation_email,
                                 "persona_type": persona.get("persona_type", ""),
                                 "issue_name": item.get("issue_name", ""),
                                 "question": item.get("question", ""),
@@ -1418,7 +1596,7 @@ with tab_issue:
                                 "correction_reason": row["correction_reason"],
                             },
                         )
-                    st.success("10개 현안 검증 기록이 저장되었습니다.")
+                    st.success("10개 진로·협업 질문 검증 기록이 저장되었습니다.")
 
 with tab_admin:
     st.subheader("관리자 대시보드")
@@ -1497,34 +1675,104 @@ with tab_admin:
         m2.metric("검증 기록", 0 if evals.empty else len(evals))
         m3.metric("저장 위치", "로컬 data/")
 
-        with st.expander("테스트 데이터 삭제", expanded=False):
-            st.warning("삭제한 기록은 복구할 수 없습니다. 테스트 기록을 정리할 때만 사용하세요.")
+        st.markdown("#### 기록 삭제")
+        st.warning("삭제한 기록은 복구할 수 없습니다. 수업 전 테스트 기록 정리 용도로만 사용하세요.")
+
+        score_df_for_delete = records_to_frame(records) if records else pd.DataFrame()
+        eval_df_for_delete = evaluations_to_frame(evals) if not evals.empty else pd.DataFrame()
+
+        delete_col1, delete_col2 = st.columns(2)
+        with delete_col1:
+            st.markdown("##### 페르소나 기록 삭제")
+            if not score_df_for_delete.empty:
+                persona_options = {
+                    f"{int(row.record_id)} | {row.created_at} | {row.email or '이메일 없음'} | {row.persona_type}": int(row.record_id)
+                    for row in score_df_for_delete.itertuples(index=False)
+                }
+                with st.form("delete_one_persona_form"):
+                    selected_persona_label = st.selectbox("삭제할 페르소나 기록", list(persona_options.keys()))
+                    confirm_persona_delete = st.text_input("페르소나 삭제 확인 문구", placeholder="DELETE")
+                    delete_one_persona = st.form_submit_button("선택 페르소나 삭제")
+                if delete_one_persona:
+                    if confirm_persona_delete.strip() != "DELETE":
+                        st.error("삭제하려면 DELETE를 입력하세요.")
+                    else:
+                        deleted = delete_persona_record_by_index(persona_options[selected_persona_label])
+                        st.success("선택한 페르소나 기록을 삭제했습니다." if deleted else "삭제할 기록을 찾지 못했습니다.")
+                        st.rerun()
+            else:
+                st.info("삭제할 페르소나 기록이 없습니다.")
+
             email_values = record_email_values(records, evals)
             if email_values:
                 with st.form("delete_email_data_form"):
-                    selected_email = st.selectbox("삭제할 이메일 또는 기존 식별자", email_values)
-                    confirm_delete = st.text_input("선택 기록 삭제 확인 문구", placeholder="DELETE")
-                    delete_selected = st.form_submit_button("선택한 사용자 기록 삭제")
+                    selected_email = st.selectbox("이메일 기준 전체 삭제", email_values)
+                    confirm_delete = st.text_input("이메일 기준 삭제 확인 문구", placeholder="DELETE")
+                    delete_selected = st.form_submit_button("해당 이메일의 페르소나·검증 기록 삭제")
                 if delete_selected:
                     if confirm_delete.strip() != "DELETE":
-                        st.error("삭제하려면 확인 문구에 DELETE를 입력하세요.")
+                        st.error("삭제하려면 DELETE를 입력하세요.")
                     else:
                         deleted_records, deleted_evals = delete_data_for_email(selected_email)
                         st.success(f"{selected_email} 기록을 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
                         st.rerun()
-            else:
-                st.info("삭제할 사용자 기록이 없습니다.")
 
-            with st.form("delete_all_data_form"):
-                confirm_all = st.text_input("전체 테스트 데이터 삭제 확인 문구", placeholder="DELETE ALL")
-                delete_all = st.form_submit_button("전체 테스트 데이터 삭제")
-            if delete_all:
-                if confirm_all.strip() != "DELETE ALL":
-                    st.error("전체 삭제하려면 확인 문구에 DELETE ALL을 입력하세요.")
-                else:
-                    deleted_records, deleted_evals = delete_all_data()
-                    st.success(f"전체 테스트 데이터를 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
-                    st.rerun()
+        with delete_col2:
+            st.markdown("##### 검증 기록 삭제")
+            if not eval_df_for_delete.empty:
+                evaluation_options = {
+                    f"{int(row.record_id)} | {getattr(row, 'created_at', '')} | {getattr(row, 'email', '') or '이메일 없음'} | {getattr(row, 'issue_name', '')}": int(row.record_id)
+                    for row in eval_df_for_delete.tail(200).itertuples(index=False)
+                }
+                with st.form("delete_one_evaluation_form"):
+                    selected_eval_label = st.selectbox("삭제할 검증 기록", list(evaluation_options.keys()))
+                    confirm_eval_delete = st.text_input("검증 기록 삭제 확인 문구", placeholder="DELETE")
+                    delete_one_eval = st.form_submit_button("선택 검증 기록 삭제")
+                if delete_one_eval:
+                    if confirm_eval_delete.strip() != "DELETE":
+                        st.error("삭제하려면 DELETE를 입력하세요.")
+                    else:
+                        deleted = delete_evaluation_rows([evaluation_options[selected_eval_label]])
+                        st.success(f"검증 기록 {deleted}건을 삭제했습니다.")
+                        st.rerun()
+
+                eval_email_values = sorted(value for value in eval_df_for_delete["email"].dropna().unique().tolist() if str(value).strip())
+                if eval_email_values:
+                    with st.form("delete_evaluation_email_form"):
+                        selected_eval_email = st.selectbox("이메일 기준 검증 기록 삭제", eval_email_values)
+                        confirm_eval_email_delete = st.text_input("이메일 검증 삭제 확인 문구", placeholder="DELETE")
+                        delete_eval_email = st.form_submit_button("해당 이메일의 검증 기록만 삭제")
+                    if delete_eval_email:
+                        if confirm_eval_email_delete.strip() != "DELETE":
+                            st.error("삭제하려면 DELETE를 입력하세요.")
+                        else:
+                            deleted = delete_evaluations_for_email(selected_eval_email)
+                            st.success(f"{selected_eval_email}의 검증 기록 {deleted}건을 삭제했습니다.")
+                            st.rerun()
+
+                with st.form("delete_all_evaluations_form"):
+                    confirm_all_evals = st.text_input("전체 검증 기록 삭제 확인 문구", placeholder="DELETE EVALS")
+                    delete_all_eval_rows = st.form_submit_button("전체 검증 기록 삭제")
+                if delete_all_eval_rows:
+                    if confirm_all_evals.strip() != "DELETE EVALS":
+                        st.error("전체 검증 기록을 삭제하려면 DELETE EVALS를 입력하세요.")
+                    else:
+                        deleted = delete_all_evaluations()
+                        st.success(f"전체 검증 기록 {deleted}건을 삭제했습니다.")
+                        st.rerun()
+            else:
+                st.info("삭제할 검증 기록이 없습니다.")
+
+        with st.form("delete_all_data_form"):
+            confirm_all = st.text_input("전체 테스트 데이터 삭제 확인 문구", placeholder="DELETE ALL")
+            delete_all = st.form_submit_button("전체 페르소나·검증 기록 삭제")
+        if delete_all:
+            if confirm_all.strip() != "DELETE ALL":
+                st.error("전체 삭제하려면 DELETE ALL을 입력하세요.")
+            else:
+                deleted_records, deleted_evals = delete_all_data()
+                st.success(f"전체 테스트 데이터를 삭제했습니다. 페르소나 {deleted_records}건, 검증 {deleted_evals}건")
+                st.rerun()
 
         if records:
             score_df = records_to_frame(records)
@@ -1543,12 +1791,14 @@ with tab_admin:
             st.info("아직 저장된 페르소나 기록이 없습니다.")
 
         if not evals.empty:
+            eval_display_df = evaluations_to_frame(evals)
             st.markdown("#### 검증 판정 분포")
-            st.bar_chart(evals["verdict"].value_counts())
-            st.dataframe(evals.tail(30), width="stretch")
+            if "verdict" in eval_display_df.columns:
+                st.bar_chart(eval_display_df["verdict"].value_counts())
+            st.dataframe(eval_display_df.tail(30), width="stretch")
             st.download_button(
                 "검증 기록 CSV 다운로드",
-                data=evals.to_csv(index=False).encode("utf-8-sig"),
+                data=eval_display_df.to_csv(index=False).encode("utf-8-sig"),
                 file_name="persona_evaluations_export.csv",
                 mime="text/csv",
             )
