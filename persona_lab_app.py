@@ -105,6 +105,19 @@ CURRENT_ISSUES = {
     "대학 등록금과 교육 기회": "대학 등록금과 교육비 부담을 줄이기 위해 공공 지원을 확대해야 할까?",
 }
 
+ISSUE_ANCHOR_MAP = {
+    "AI 규제와 저작권": ["ai_regulation", "privacy"],
+    "청년 고용과 포트폴리오": ["youth_jobs", "platform_labor"],
+    "주거비와 청년 삶": ["housing_policy", "inequality"],
+    "기후위기와 에너지 비용": ["climate_transition"],
+    "개인정보와 공공안전": ["privacy", "ai_regulation"],
+    "지역소멸과 대학": ["regional_decline", "youth_jobs"],
+    "다문화와 사회통합": ["multicultural"],
+    "플랫폼 노동": ["platform_labor", "inequality"],
+    "저출생과 돌봄": ["youth_jobs", "inequality", "housing_policy"],
+    "대학 등록금과 교육 기회": ["inequality", "youth_jobs"],
+}
+
 
 def now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
@@ -407,11 +420,32 @@ def persona_prompt(profile: dict[str, Any]) -> str:
 """.strip()
 
 
+def issue_anchor_context(persona: dict[str, Any], issues: dict[str, str]) -> list[dict[str, Any]]:
+    profile = persona.get("profile", {})
+    attitudes = profile.get("issue_attitudes", {})
+    context = []
+    for issue_name, question in issues.items():
+        fields = ISSUE_ANCHOR_MAP.get(issue_name, [])
+        values = []
+        for field in fields:
+            if field in attitudes:
+                values.append({"field": field, "score_1_to_5": attitudes[field]})
+        context.append(
+            {
+                "issue_name": issue_name,
+                "question": question,
+                "related_input_scores": values,
+            }
+        )
+    return context
+
+
 def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
     return f"""
-당신은 아래 페르소나 분석 결과를 바탕으로 사회 현안 10개에 답하는 시뮬레이션 응답자다.
-단, 실제 사람인 척하지 말고 "이 페르소나 가설에 따르면"이라는 조건을 유지한다.
-정당 지지, 투표 선택, 민감정보를 추정하지 않는다.
+당신은 아래 페르소나 분석 결과를 바탕으로 실제 사회조사에 참여한 응답자처럼 답한다.
+목표는 "이 페르소나가 실제 사람처럼 10개 현안에 어떻게 응답할지"를 시뮬레이션하고, 이후 사용자가 맞다/틀리다로 검증하게 하는 것이다.
+따라서 분석 보고서처럼 회피하지 말고, 실제 설문 응답자처럼 1~5점 중 하나를 선택한다.
+정당 지지, 투표 선택, 입력되지 않은 민감정보는 새로 추정하지 않는다.
 응답은 한국어 JSON만 출력한다.
 각 현안에 대해 1~5점 리커트 척도로 답한다.
 
@@ -422,11 +456,24 @@ def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
 4 = 찬성
 5 = 매우 찬성
 
+응답 원칙:
+- 출력 문장은 실제 설문 응답자의 답변처럼 쓴다. 메타 설명이나 분석 보고서 표현을 반복하지 않는다.
+- 3점은 정말 판단이 혼합되거나 입력 근거가 약할 때만 사용한다.
+- 10개 응답 중 3점은 최대 2개까지만 허용한다.
+- 10개 모두 같은 점수, 특히 모두 3점은 실패다.
+- related_input_scores의 1~5점 입력값은 가장 강한 앵커다. 특별한 반대 근거가 없으면 같은 방향으로 응답한다.
+- 입력값이 4 또는 5이면 원칙적으로 4~5점, 입력값이 1 또는 2이면 원칙적으로 1~2점으로 응답한다.
+- 여러 입력값이 충돌하면 정치 관심, 제도 신뢰, 근거 검증 성향, 상세 페르소나 요약을 함께 고려해 하나를 고른다.
+- 각 현안에 대해 실제 응답자처럼 1인칭 응답 문장을 작성한다. 예: "나는 공공 개입이 더 필요하다고 보는 편이다."
+
 페르소나:
 {json.dumps(persona, ensure_ascii=False, indent=2)}
 
 현안 목록:
 {json.dumps([{"issue_name": key, "question": value} for key, value in issues.items()], ensure_ascii=False, indent=2)}
+
+현안별 입력 문항 앵커:
+{json.dumps(issue_anchor_context(persona, issues), ensure_ascii=False, indent=2)}
 
 출력 JSON 스키마:
 {{
@@ -437,7 +484,9 @@ def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
       "question": "질문",
       "score": 1,
       "label": "1점 매우 반대",
+      "response_text": "실제 응답자처럼 쓴 1인칭 응답 문장 1~2문장",
       "reason": "페르소나 입력 근거에 기반한 이유 2~3문장",
+      "confidence": "높음/중간/낮음",
       "uncertainty": "현재 입력만으로 부족한 점",
       "verification_hint": "사용자가 맞다/틀리다를 판단할 때 볼 기준"
     }}
@@ -448,6 +497,7 @@ def issue_prompt(persona: dict[str, Any], issues: dict[str, str]) -> str:
 - responses는 반드시 위 현안 목록과 같은 순서로 정확히 10개를 출력한다.
 - score는 반드시 정수 1,2,3,4,5 중 하나다.
 - reason에는 입력 근거와 연결되는 설명을 넣는다.
+- response_text는 분석문이 아니라 실제 설문 응답자처럼 쓴다.
 - JSON 외 텍스트를 출력하지 않는다.
 """.strip()
 
@@ -490,11 +540,19 @@ def normalize_issue_batch(issue_json: dict[str, Any]) -> dict[str, Any]:
                 "question": question,
                 "score": score,
                 "label": LIKERT_LABELS[score],
+                "response_text": str(item.get("response_text", "")).strip(),
                 "reason": str(item.get("reason", "")).strip(),
+                "confidence": str(item.get("confidence", "")).strip(),
                 "uncertainty": str(item.get("uncertainty", "")).strip(),
                 "verification_hint": str(item.get("verification_hint", "")).strip(),
             }
         )
+
+    scores = [item["score"] for item in normalized]
+    if len(set(scores)) == 1:
+        raise ValueError("모든 현안 응답 점수가 동일합니다. 실제 응답자처럼 변별된 응답이 필요합니다.")
+    if scores.count(3) > 2:
+        raise ValueError("3점 응답이 너무 많습니다. 판단 유보는 최대 2개까지만 허용합니다.")
 
     return {
         "overall_pattern": str(issue_json.get("overall_pattern", "")).strip(),
@@ -677,7 +735,9 @@ def persona_report(persona: dict[str, Any], answer: dict[str, Any] | None = None
                         f"### {item.get('issue_name', '')}",
                         f"- 질문: {item.get('question', '')}",
                         f"- 응답: {item.get('label', '')}",
+                        f"- 응답 문장: {item.get('response_text', '')}",
                         f"- 이유: {item.get('reason', '')}",
+                        f"- 신뢰도: {item.get('confidence', '')}",
                         f"- 불확실성: {item.get('uncertainty', '')}",
                         "",
                     ]
@@ -993,7 +1053,9 @@ with tab_issue:
                         "현안": item.get("issue_name", ""),
                         "질문": item.get("question", ""),
                         "페르소나 응답": item.get("label", ""),
+                        "응답 문장": item.get("response_text", ""),
                         "이유": item.get("reason", ""),
+                        "신뢰도": item.get("confidence", ""),
                         "불확실성": item.get("uncertainty", ""),
                     }
                     for idx, item in enumerate(responses)
@@ -1009,6 +1071,8 @@ with tab_issue:
                 for idx, item in enumerate(responses):
                     st.markdown(f"**{idx + 1}. {item.get('issue_name', '')}**")
                     st.write(f"페르소나 응답: **{item.get('label', '')}**")
+                    if item.get("response_text"):
+                        st.write(item["response_text"])
                     st.caption(item.get("verification_hint", ""))
                     c1, c2 = st.columns([1, 1])
                     with c1:
@@ -1063,7 +1127,9 @@ with tab_issue:
                                 "question": item.get("question", ""),
                                 "predicted_score": item.get("score", ""),
                                 "predicted_label": item.get("label", ""),
+                                "predicted_response_text": item.get("response_text", ""),
                                 "predicted_reason": item.get("reason", ""),
+                                "predicted_confidence": item.get("confidence", ""),
                                 "verdict": row["verdict"],
                                 "corrected_score": row["corrected_score"] if row["verdict"] == "틀리다" else "",
                                 "corrected_label": LIKERT_LABELS[row["corrected_score"]] if row["verdict"] == "틀리다" else "",
