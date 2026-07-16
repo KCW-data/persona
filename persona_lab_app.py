@@ -926,47 +926,97 @@ with tab_issue:
                     append_csv(EVALUATIONS_PATH, row)
                     st.success("검증 기록이 저장되었습니다.")
 
-with tab_dash:
-    st.subheader("대시보드")
-    records = load_jsonl(RECORDS_PATH)
-    evals = load_evaluations(EVALUATIONS_PATH)
+with tab_admin:
+    st.subheader("관리자 대시보드")
+    st.caption("Gemini 키, 모델, 전체 응답 기록은 관리자만 확인합니다.")
 
-    with st.expander("Gemini API 설정 확인"):
-        key_status = "입력됨" if st.session_state.get("gemini_api_key") else "미입력"
-        st.write(f"API 키 상태: {key_status}")
-        st.write(f"선택 모델: {st.session_state.get('gemini_model', DEFAULT_MODEL)}")
-        st.caption("GitHub에 API 키를 커밋하지 마세요. Streamlit Cloud Secrets에 GEMINI_API_KEY로 등록하세요.")
+    if not st.session_state.get("admin_authenticated", False):
+        if not configured_admin_password():
+            st.error("관리자 비밀번호가 설정되어 있지 않습니다. Streamlit Secrets 또는 환경변수에 ADMIN_PASSWORD를 먼저 등록하세요.")
+            st.code('ADMIN_PASSWORD = "강사용_비밀번호"\nGEMINI_API_KEY = "YOUR_GEMINI_API_KEY"', language="toml")
+        else:
+            with st.form("admin_login_form"):
+                password = st.text_input("관리자 비밀번호", type="password")
+                login = st.form_submit_button("관리자 로그인")
+            if login:
+                if admin_login(password):
+                    st.session_state["admin_authenticated"] = True
+                    st.success("관리자 로그인이 완료되었습니다.")
+                    st.rerun()
+                else:
+                    st.error("비밀번호가 맞지 않습니다.")
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("페르소나 기록", len(records))
-    m2.metric("검증 기록", 0 if evals.empty else len(evals))
-    m3.metric("분석 방식", "Gemini / 예비")
+    if st.session_state.get("admin_authenticated", False):
+        runtime_config = load_runtime_config()
+        runtime = gemini_runtime_config()
+        st.markdown("#### Gemini 서버 설정")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("키 상태", gemini_status_label())
+        c2.metric("모델", runtime["GEMINI_MODEL"])
+        c3.metric("런타임 설정", "있음" if runtime_config else "없음")
 
-    if records:
-        score_df = records_to_frame(records)
-        numeric_cols = [col for col in score_df.columns if pd.api.types.is_numeric_dtype(score_df[col])]
-        st.markdown("#### 분석 축 분포")
-        if numeric_cols:
-            st.bar_chart(score_df[numeric_cols])
-        st.dataframe(score_df, width="stretch")
-        st.download_button(
-            "페르소나 기록 CSV 다운로드",
-            data=score_df.to_csv(index=False).encode("utf-8-sig"),
-            file_name="persona_records_export.csv",
-            mime="text/csv",
-        )
-    else:
-        st.info("아직 저장된 페르소나 기록이 없습니다.")
+        with st.form("admin_gemini_config_form"):
+            new_api_key = st.text_input(
+                "Gemini API Key 등록/교체",
+                type="password",
+                placeholder="새 키를 입력하면 서버 런타임 설정에 저장됩니다.",
+            )
+            new_model = st.selectbox(
+                "Gemini 모델",
+                MODEL_OPTIONS,
+                index=MODEL_OPTIONS.index(runtime["GEMINI_MODEL"]) if runtime["GEMINI_MODEL"] in MODEL_OPTIONS else 0,
+            )
+            save_config = st.form_submit_button("서버 런타임 설정 저장")
+        if save_config:
+            config = load_runtime_config()
+            if new_api_key.strip():
+                config["GEMINI_API_KEY"] = new_api_key.strip()
+            config["GEMINI_MODEL"] = new_model
+            save_runtime_config(config)
+            st.success("관리자 런타임 설정을 저장했습니다. 일반 사용자는 키를 입력하지 않아도 이 설정으로 분석합니다.")
+            st.rerun()
 
-    if not evals.empty:
-        st.markdown("#### 검증 판정 분포")
-        st.bar_chart(evals["verdict"].value_counts())
-        st.dataframe(evals.tail(30), width="stretch")
-        st.download_button(
-            "검증 기록 CSV 다운로드",
-            data=evals.to_csv(index=False).encode("utf-8-sig"),
-            file_name="persona_evaluations_export.csv",
-            mime="text/csv",
-        )
-    else:
-        st.info("아직 저장된 검증 기록이 없습니다.")
+        if runtime_config.get("GEMINI_API_KEY") and st.button("런타임 Gemini 키 삭제"):
+            config = load_runtime_config()
+            config.pop("GEMINI_API_KEY", None)
+            save_runtime_config(config)
+            st.success("런타임 Gemini 키를 삭제했습니다. Secrets 키가 있으면 그 키를 사용합니다.")
+            st.rerun()
+
+        st.divider()
+        records = load_jsonl(RECORDS_PATH)
+        evals = load_evaluations(EVALUATIONS_PATH)
+
+        m1, m2, m3 = st.columns(3)
+        m1.metric("페르소나 기록", len(records))
+        m2.metric("검증 기록", 0 if evals.empty else len(evals))
+        m3.metric("저장 위치", "로컬 data/")
+
+        if records:
+            score_df = records_to_frame(records)
+            numeric_cols = [col for col in score_df.columns if pd.api.types.is_numeric_dtype(score_df[col])]
+            st.markdown("#### 분석 축 분포")
+            if numeric_cols:
+                st.bar_chart(score_df[numeric_cols])
+            st.dataframe(score_df, width="stretch")
+            st.download_button(
+                "페르소나 기록 CSV 다운로드",
+                data=score_df.to_csv(index=False).encode("utf-8-sig"),
+                file_name="persona_records_export.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("아직 저장된 페르소나 기록이 없습니다.")
+
+        if not evals.empty:
+            st.markdown("#### 검증 판정 분포")
+            st.bar_chart(evals["verdict"].value_counts())
+            st.dataframe(evals.tail(30), width="stretch")
+            st.download_button(
+                "검증 기록 CSV 다운로드",
+                data=evals.to_csv(index=False).encode("utf-8-sig"),
+                file_name="persona_evaluations_export.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("아직 저장된 검증 기록이 없습니다.")
