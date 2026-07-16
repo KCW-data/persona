@@ -5,6 +5,7 @@ import hmac
 import json
 import os
 import re
+import time
 import tomllib
 from datetime import datetime
 from pathlib import Path
@@ -21,18 +22,24 @@ RECORDS_PATH = DATA_DIR / "persona_records.jsonl"
 EVALUATIONS_PATH = DATA_DIR / "evaluations.csv"
 LOCAL_SECRETS_PATH = APP_DIR / ".streamlit" / "secrets.toml"
 
-DEFAULT_MODEL = "gemini-3.5-flash"
+DEFAULT_MODEL = "gemini-3.1-flash-lite"
 MODEL_OPTIONS = [
+    "gemini-3.1-flash-lite",
     "gemini-3.5-flash",
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash-lite",
     "gemini-2.5-pro",
+    "gemini-flash-latest",
 ]
 MODEL_FALLBACKS = [
+    "gemini-3.1-flash-lite",
+    "gemini-3-flash-preview",
     "gemini-3.5-flash",
-    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
     "gemini-flash-latest",
 ]
+TRANSIENT_GEMINI_STATUS_CODES = {429, 500, 502, 503, 504}
+GEMINI_RETRY_DELAYS = [1.0, 2.5, 5.0]
 
 SURVEY_BASIS = [
     "통계청 사회조사: 인구·가구 특성, 사회참여, 신뢰, 생활여건, 사회적 관심 영역을 참고",
@@ -713,6 +720,25 @@ def compact_http_error(response: requests.Response) -> str:
     return f"HTTP {response.status_code}: {message}"
 
 
+def friendly_gemini_error(error_text: str) -> str:
+    lowered = error_text.lower()
+    if "503" in error_text or "500" in error_text or "high demand" in lowered or "serviceunavailable" in lowered:
+        return (
+            "현재 Gemini API가 혼잡하거나 일시적으로 불안정합니다. 앱이 자동 재시도와 대체 모델 호출을 수행했지만 완료하지 못했습니다. "
+            "잠시 후 다시 시도하거나 관리자에게 모델을 gemini-3.1-flash-lite로 설정했는지 확인해 달라고 요청하세요."
+        )
+    if "404" in error_text or "no longer available" in lowered or "not found" in lowered:
+        return (
+            "설정된 Gemini 모델 중 현재 계정에서 사용할 수 없는 모델이 있습니다. "
+            "관리자 대시보드 또는 Streamlit Secrets의 GEMINI_MODEL을 gemini-3.1-flash-lite로 바꾸는 것이 좋습니다."
+        )
+    if "api key" in lowered or "permission" in lowered or "unauthorized" in lowered or "forbidden" in lowered:
+        return "Gemini API 키 권한 또는 프로젝트 설정을 확인해야 합니다. 관리자 대시보드에서 연결 테스트를 실행하세요."
+    if "quota" in lowered or "429" in error_text:
+        return "Gemini API 사용량 한도 또는 요청 제한에 도달했을 수 있습니다. 잠시 후 다시 시도하거나 관리자에게 할당량을 확인해 달라고 요청하세요."
+    return "Gemini 분석이 완료되지 않았습니다. 관리자 대시보드에서 최근 오류와 연결 테스트 결과를 확인하세요."
+
+
 def model_attempts(configured_model: str) -> list[str]:
     models = [configured_model, *MODEL_FALLBACKS]
     seen: set[str] = set()
@@ -736,31 +762,38 @@ def call_gemini(api_key: str, model: str, prompt: str) -> tuple[str, dict[str, A
                 "response_mime_type": "application/json",
             },
         }
-        try:
-            response = requests.post(
-                generate_url,
-                params={"key": api_key},
-                json=payload,
-                timeout=60,
-            )
-        except requests.RequestException as exc:
-            errors.append(f"{candidate_model}: 네트워크 오류 또는 시간 초과 - {exc}")
-            continue
+        for attempt_index, delay in enumerate([0.0, *GEMINI_RETRY_DELAYS], start=1):
+            if delay:
+                time.sleep(delay)
+            try:
+                response = requests.post(
+                    generate_url,
+                    params={"key": api_key},
+                    json=payload,
+                    timeout=75,
+                )
+            except requests.RequestException as exc:
+                errors.append(f"{candidate_model} {attempt_index}회차: 네트워크 오류 또는 시간 초과 - {exc}")
+                continue
 
-        if not response.ok:
-            errors.append(f"{candidate_model}: {compact_http_error(response)}")
-            continue
+            if not response.ok:
+                error_text = compact_http_error(response)
+                errors.append(f"{candidate_model} {attempt_index}회차: {error_text}")
+                if response.status_code in TRANSIENT_GEMINI_STATUS_CODES:
+                    continue
+                break
 
-        data = response.json()
-        text = extract_interaction_text(data)
-        if text.strip():
-            data["_model_used"] = candidate_model
-            return text, data
-        errors.append(f"{candidate_model}: 응답은 받았지만 텍스트가 비어 있습니다.")
+            data = response.json()
+            text = extract_interaction_text(data)
+            if text.strip():
+                data["_model_used"] = candidate_model
+                data["_attempt_count"] = attempt_index
+                return text, data
+            errors.append(f"{candidate_model} {attempt_index}회차: 응답은 받았지만 텍스트가 비어 있습니다.")
 
     fallback_hint = (
-        "Gemini 호출이 모두 실패했습니다. 관리자 대시보드에서 API 키가 유효한지, "
-        "해당 Google AI Studio 프로젝트에서 Gemini API 사용과 결제가 가능한지 확인하세요."
+        "Gemini 호출이 모두 실패했습니다. 500/503 계열이면 Google API의 일시 장애나 과부하일 수 있으므로 잠시 후 다시 시도하세요. "
+        "반복되면 관리자 대시보드에서 API 키, 모델 접근권한, 할당량, 결제 상태를 확인하세요."
     )
     raise RuntimeError(f"{fallback_hint} 시도 결과: " + " | ".join(errors))
 
@@ -1213,11 +1246,11 @@ with tab_input:
                     status.update(label="분석이 완료되었습니다.", state="complete")
                 except Exception as exc:
                     status.update(label="분석에 실패했습니다.", state="error")
-                    st.error("분석이 완료되지 않았습니다. 관리자 대시보드에서 Gemini 연결 상태와 최근 오류를 확인하세요.")
-                    st.session_state["last_analysis_error"] = str(exc)
+                    error_text = str(exc)
+                    st.error(friendly_gemini_error(error_text))
+                    st.session_state["last_analysis_error"] = error_text
                     st.session_state["last_analysis_error_at"] = now_iso()
-                    with st.expander("오류 요약"):
-                        st.write(str(exc))
+                    st.caption("상세 API 오류는 관리자 대시보드의 '최근 분석 오류'에서 확인합니다.")
                     st.stop()
 
             st.session_state["persona"] = persona
@@ -1280,11 +1313,11 @@ with tab_issue:
                     status.update(label="응답 생성이 완료되었습니다.", state="complete")
                 except Exception as exc:
                     status.update(label="응답 생성에 실패했습니다.", state="error")
-                    st.error("현안 응답이 완료되지 않았습니다. 관리자 대시보드에서 Gemini 연결 상태와 최근 오류를 확인하세요.")
-                    st.session_state["last_issue_error"] = str(exc)
+                    error_text = str(exc)
+                    st.error(friendly_gemini_error(error_text))
+                    st.session_state["last_issue_error"] = error_text
                     st.session_state["last_issue_error_at"] = now_iso()
-                    with st.expander("오류 요약"):
-                        st.write(str(exc))
+                    st.caption("상세 API 오류는 관리자 대시보드의 '최근 분석 오류'에서 확인합니다.")
                     st.stop()
 
             st.session_state["last_issue_answer"] = issue_json
@@ -1418,6 +1451,11 @@ with tab_admin:
             "배포 운영에서는 Streamlit Cloud Secrets에 GEMINI_API_KEY와 ADMIN_PASSWORD를 한 번만 등록합니다. "
             "사용자는 API 키를 입력하지 않으며, 관리자 대시보드에도 매번 키를 넣을 필요가 없습니다."
         )
+        if runtime["GEMINI_MODEL"] != DEFAULT_MODEL:
+            st.warning(
+                f"현재 모델은 {runtime['GEMINI_MODEL']}입니다. 수업 실습처럼 동시 사용자가 있는 환경에서는 "
+                f"{DEFAULT_MODEL} 사용을 권장합니다."
+            )
         if st.button("Gemini 연결 테스트"):
             if not runtime["GEMINI_API_KEY"]:
                 st.error("GEMINI_API_KEY가 설정되어 있지 않습니다.")

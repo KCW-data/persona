@@ -1,6 +1,6 @@
 # 사회조사형 페르소나 시뮬레이션 앱
 
-강의 실습용 Streamlit 앱입니다. 인구통계학적 정보, 정치 관심, 제도 신뢰, 사회 현안 태도, 정보 이용 방식을 입력하고 Gemini API로 페르소나를 분석합니다.
+2026.7.24 강의 실습용 Streamlit 앱입니다. 인구통계학적 정보, 정치 관심, 제도 신뢰, 사회 현안 태도, 정보 이용 방식을 입력하고 Gemini API로 페르소나를 분석합니다.
 
 ## 실행
 
@@ -42,10 +42,12 @@ Streamlit Cloud에 배포할 때는 Secrets에 아래처럼 등록합니다.
 ```toml
 ADMIN_PASSWORD = "CHANGE_ME_ADMIN_PASSWORD"
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-GEMINI_MODEL = "gemini-3.5-flash"
+GEMINI_MODEL = "gemini-3.1-flash-lite"
 ```
 
 API 키는 GitHub에 커밋하지 않습니다.
+
+수업 실습처럼 여러 학생이 동시에 요청하는 환경에서는 `gemini-3.1-flash-lite`를 권장합니다. `gemini-3.5-flash`는 더 강력하지만 혼잡 시간대에 503 오류가 발생할 수 있습니다.
 
 관리자 대시보드는 5번 탭에서 비밀번호 로그인 후 확인할 수 있습니다. 관리자 대시보드에서는 분석 설정 상태, 전체 응답 기록, CSV 다운로드, 테스트 데이터 삭제를 확인합니다. API 키 등록은 Streamlit Cloud Secrets에서 수행합니다.
 
