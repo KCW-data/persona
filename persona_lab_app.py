@@ -25,7 +25,13 @@ DEFAULT_MODEL = "gemini-3.5-flash"
 MODEL_OPTIONS = [
     "gemini-3.5-flash",
     "gemini-2.5-flash",
+    "gemini-flash-latest",
     "gemini-2.5-pro",
+]
+MODEL_FALLBACKS = [
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
 ]
 
 SURVEY_BASIS = [
@@ -695,34 +701,83 @@ def extract_interaction_text(data: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def call_gemini(api_key: str, model: str, prompt: str) -> tuple[str, dict[str, Any]]:
-    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
-    interactions_payload = {"model": model, "input": prompt}
+def compact_http_error(response: requests.Response) -> str:
     try:
-        response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/interactions",
-            headers=headers,
-            json=interactions_payload,
-            timeout=60,
-        )
-        if response.ok:
-            data = response.json()
-            text = extract_interaction_text(data)
-            if text.strip():
-                return text, data
-    except requests.RequestException:
-        pass
+        payload = response.json()
+        message = payload.get("error", {}).get("message") or payload.get("message") or response.text
+    except ValueError:
+        message = response.text
+    message = re.sub(r"\s+", " ", str(message)).strip()
+    if len(message) > 420:
+        message = message[:420] + "..."
+    return f"HTTP {response.status_code}: {message}"
 
-    generate_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-    response = requests.post(
-        generate_url,
-        params={"key": api_key},
-        json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=60,
+
+def model_attempts(configured_model: str) -> list[str]:
+    models = [configured_model, *MODEL_FALLBACKS]
+    seen: set[str] = set()
+    ordered = []
+    for model in models:
+        model = str(model).strip()
+        if model and model not in seen:
+            ordered.append(model)
+            seen.add(model)
+    return ordered
+
+
+def call_gemini(api_key: str, model: str, prompt: str) -> tuple[str, dict[str, Any]]:
+    errors = []
+    for candidate_model in model_attempts(model):
+        generate_url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent"
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.35,
+                "response_mime_type": "application/json",
+            },
+        }
+        try:
+            response = requests.post(
+                generate_url,
+                params={"key": api_key},
+                json=payload,
+                timeout=60,
+            )
+        except requests.RequestException as exc:
+            errors.append(f"{candidate_model}: 네트워크 오류 또는 시간 초과 - {exc}")
+            continue
+
+        if not response.ok:
+            errors.append(f"{candidate_model}: {compact_http_error(response)}")
+            continue
+
+        data = response.json()
+        text = extract_interaction_text(data)
+        if text.strip():
+            data["_model_used"] = candidate_model
+            return text, data
+        errors.append(f"{candidate_model}: 응답은 받았지만 텍스트가 비어 있습니다.")
+
+    fallback_hint = (
+        "Gemini 호출이 모두 실패했습니다. 관리자 대시보드에서 API 키가 유효한지, "
+        "해당 Google AI Studio 프로젝트에서 Gemini API 사용과 결제가 가능한지 확인하세요."
     )
-    response.raise_for_status()
-    data = response.json()
-    return extract_interaction_text(data), data
+    raise RuntimeError(f"{fallback_hint} 시도 결과: " + " | ".join(errors))
+
+
+def test_gemini_connection(api_key: str, model: str) -> tuple[bool, str]:
+    try:
+        text, data = call_gemini(
+            api_key,
+            model,
+            '한국어 JSON만 출력하세요. {"ok": true, "message": "ready"}',
+        )
+        used_model = data.get("_model_used", model)
+        if parse_json_from_text(text):
+            return True, f"정상 연결: {used_model}"
+        return False, f"응답은 받았지만 JSON 해석에 실패했습니다: {text[:180]}"
+    except Exception as exc:
+        return False, str(exc)
 
 
 def build_profile(form: dict[str, Any], email: str) -> dict[str, Any]:
@@ -912,20 +967,21 @@ st.markdown(
     <style>
     .main .block-container { padding-top: 1.4rem; max-width: 1220px; }
     div[data-testid="stMetric"] {
-      background: #f7fafb;
-      border: 1px solid #d9e3ea;
+      background: var(--secondary-background-color);
+      border: 1px solid rgba(125, 142, 160, 0.45);
       border-radius: 8px;
       padding: 14px 16px;
     }
     .stTabs [data-baseweb="tab-list"] { gap: 8px; }
     .stTabs [data-baseweb="tab"] {
-      border: 1px solid #d9e3ea;
+      border: 1px solid rgba(125, 142, 160, 0.45);
       border-radius: 8px;
       padding: 8px 14px;
+      color: var(--text-color);
     }
     div[data-testid="stRadio"] > label {
       font-weight: 650;
-      color: #1f2937;
+      color: var(--text-color) !important;
     }
     div[data-testid="stRadio"] div[role="radiogroup"] {
       display: flex;
@@ -936,26 +992,31 @@ st.markdown(
       min-height: 2.35rem;
       margin: 0;
       padding: 0.42rem 0.58rem;
-      border: 1px solid #c9d5df;
+      border: 1px solid rgba(125, 142, 160, 0.55);
       border-radius: 8px;
-      background: #ffffff;
+      background: var(--secondary-background-color);
+      color: var(--text-color) !important;
       cursor: pointer;
       transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     }
     div[data-testid="stRadio"] div[role="radiogroup"] label:hover {
-      border-color: #496a8f;
-      background: #f6f9fb;
+      border-color: #2f8f83;
+      background: rgba(47, 143, 131, 0.12);
     }
     div[data-testid="stRadio"] div[role="radiogroup"] label:has(input:checked) {
-      border-color: #1d5f91;
-      background: #edf6fc;
-      box-shadow: inset 0 0 0 1px #1d5f91;
+      border-color: #2f8f83;
+      background: rgba(47, 143, 131, 0.22);
+      box-shadow: inset 0 0 0 1px #2f8f83;
     }
     div[data-testid="stRadio"] div[role="radiogroup"] label p {
       margin: 0;
       font-size: 0.9rem;
       line-height: 1.2;
       white-space: normal;
+      color: var(--text-color) !important;
+    }
+    div[data-testid="stRadio"] div[role="radiogroup"] label span {
+      color: var(--text-color) !important;
     }
     </style>
     """,
@@ -1144,15 +1205,19 @@ with tab_input:
                     raw_text, raw_response = call_gemini(api_key, model, persona_prompt(profile))
                     llm_json = parse_json_from_text(raw_text)
                     if not llm_json:
-                        raise ValueError("LLM 응답을 JSON으로 해석하지 못했습니다.")
+                        raise ValueError(f"LLM 응답을 JSON으로 해석하지 못했습니다. 응답 일부: {raw_text[:240]}")
                     persona = normalize_llm_persona(profile, llm_json, raw_text)
                     persona["raw_response"] = raw_response
-                    st.write("3단계: LLM 분석 결과를 구조화했습니다.")
+                    persona["model_used"] = raw_response.get("_model_used", model)
+                    st.write(f"3단계: LLM 분석 결과를 구조화했습니다. 사용 모델: {persona['model_used']}")
                     status.update(label="분석이 완료되었습니다.", state="complete")
                 except Exception as exc:
                     status.update(label="분석에 실패했습니다.", state="error")
-                    st.error("분석이 완료되지 않았습니다. 관리자에게 분석 설정을 확인해 달라고 요청하세요.")
+                    st.error("분석이 완료되지 않았습니다. 관리자 대시보드에서 Gemini 연결 상태와 최근 오류를 확인하세요.")
                     st.session_state["last_analysis_error"] = str(exc)
+                    st.session_state["last_analysis_error_at"] = now_iso()
+                    with st.expander("오류 요약"):
+                        st.write(str(exc))
                     st.stop()
 
             st.session_state["persona"] = persona
@@ -1207,15 +1272,19 @@ with tab_issue:
                     raw_text, raw_response = call_gemini(api_key, model, issue_prompt(persona, CURRENT_ISSUES))
                     issue_json = parse_json_from_text(raw_text)
                     if not issue_json:
-                        raise ValueError("LLM 응답을 JSON으로 해석하지 못했습니다.")
+                        raise ValueError(f"LLM 응답을 JSON으로 해석하지 못했습니다. 응답 일부: {raw_text[:240]}")
                     issue_json = normalize_issue_batch(issue_json)
                     issue_json["raw_response"] = raw_response
                     issue_json["generated_at"] = now_iso()
+                    issue_json["model_used"] = raw_response.get("_model_used", model)
                     status.update(label="응답 생성이 완료되었습니다.", state="complete")
                 except Exception as exc:
                     status.update(label="응답 생성에 실패했습니다.", state="error")
-                    st.error("현안 응답이 완료되지 않았습니다. 관리자에게 분석 설정을 확인해 달라고 요청하세요.")
+                    st.error("현안 응답이 완료되지 않았습니다. 관리자 대시보드에서 Gemini 연결 상태와 최근 오류를 확인하세요.")
                     st.session_state["last_issue_error"] = str(exc)
+                    st.session_state["last_issue_error_at"] = now_iso()
+                    with st.expander("오류 요약"):
+                        st.write(str(exc))
                     st.stop()
 
             st.session_state["last_issue_answer"] = issue_json
@@ -1349,6 +1418,37 @@ with tab_admin:
             "배포 운영에서는 Streamlit Cloud Secrets에 GEMINI_API_KEY와 ADMIN_PASSWORD를 한 번만 등록합니다. "
             "사용자는 API 키를 입력하지 않으며, 관리자 대시보드에도 매번 키를 넣을 필요가 없습니다."
         )
+        if st.button("Gemini 연결 테스트"):
+            if not runtime["GEMINI_API_KEY"]:
+                st.error("GEMINI_API_KEY가 설정되어 있지 않습니다.")
+            else:
+                with st.spinner("Gemini API 연결을 확인하는 중입니다."):
+                    ok, message = test_gemini_connection(runtime["GEMINI_API_KEY"], runtime["GEMINI_MODEL"])
+                if ok:
+                    st.success(message)
+                else:
+                    st.error(message)
+
+        recent_errors = []
+        if st.session_state.get("last_analysis_error"):
+            recent_errors.append(
+                {
+                    "구분": "페르소나 분석",
+                    "시각": st.session_state.get("last_analysis_error_at", ""),
+                    "내용": st.session_state["last_analysis_error"],
+                }
+            )
+        if st.session_state.get("last_issue_error"):
+            recent_errors.append(
+                {
+                    "구분": "현안 응답",
+                    "시각": st.session_state.get("last_issue_error_at", ""),
+                    "내용": st.session_state["last_issue_error"],
+                }
+            )
+        if recent_errors:
+            with st.expander("최근 분석 오류", expanded=True):
+                st.dataframe(pd.DataFrame(recent_errors), width="stretch")
 
         st.divider()
         records = load_jsonl(RECORDS_PATH)
